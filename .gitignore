@@ -314,6 +314,8 @@ erl_crash.dump
 /tutorial/hs/dist/
 /tutorial/java/build/
 /tutorial/js/build/
+/tutorial/rs/Cargo.lock
+/tutorial/rs/target/
 /ylwrap
 
 /cmake_*
