@@ -16,7 +16,6 @@ use thrift::ThriftErr;
 #[allow(unused_imports)]
 use thrift::ThriftErr::*;
 #[allow(unused_imports)]
-use std::num::FromPrimitive;
 use thrift::protocol::ProtocolHelpers;
 
 
@@ -42,18 +41,18 @@ impl Writeable for SharedStruct {
   #[allow(unused_variables)]
   #[allow(dead_code)]
   fn write(&self, oprot: &Protocol, transport: &mut Transport) -> TResult<()> {
-    oprot.write_struct_begin(transport, "SharedStruct");
+    try!(oprot.write_struct_begin(transport, "SharedStruct"));
 
-    oprot.write_field_begin(transport, "key", Type::TI32, 1);
-    oprot.write_i32(transport, self.key);
-    oprot.write_field_end(transport);
+    try!(oprot.write_field_begin(transport, "key", Type::TI32, 1));
+    try!(oprot.write_i32(transport, self.key));
+    try!(oprot.write_field_end(transport));
     
-    oprot.write_field_begin(transport, "value", Type::TString, 2);
-    oprot.write_string(transport, &self.value);
-    oprot.write_field_end(transport);
+    try!(oprot.write_field_begin(transport, "value", Type::TString, 2));
+    try!(oprot.write_string(transport, &self.value));
+    try!(oprot.write_field_end(transport));
     
-    oprot.write_field_stop(transport);
-    oprot.write_struct_end(transport);
+    try!(oprot.write_field_stop(transport));
+    try!(oprot.write_struct_end(transport));
     Ok(())
   }
 
@@ -100,14 +99,14 @@ impl Writeable for SharedServiceGetStructArgs {
   #[allow(unused_variables)]
   #[allow(dead_code)]
   fn write(&self, oprot: &Protocol, transport: &mut Transport) -> TResult<()> {
-    oprot.write_struct_begin(transport, "SharedService_getStruct_args");
+    try!(oprot.write_struct_begin(transport, "SharedService_getStruct_args"));
 
-    oprot.write_field_begin(transport, "key", Type::TI32, 1);
-    oprot.write_i32(transport, self.key);
-    oprot.write_field_end(transport);
+    try!(oprot.write_field_begin(transport, "key", Type::TI32, 1));
+    try!(oprot.write_i32(transport, self.key));
+    try!(oprot.write_field_end(transport));
     
-    oprot.write_field_stop(transport);
-    oprot.write_struct_end(transport);
+    try!(oprot.write_field_stop(transport));
+    try!(oprot.write_struct_end(transport));
     Ok(())
   }
 
