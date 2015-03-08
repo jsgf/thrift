@@ -20,7 +20,6 @@ use thrift::protocol::ProtocolHelpers;
 
 
 #[allow(dead_code)]
-#[derive(Show)]
 pub struct SharedStruct {
   pub key: i32,
   pub value: String,
@@ -89,7 +88,6 @@ impl Readable for SharedStruct {
 }
 
 #[allow(dead_code)]
-#[derive(Show)]
 pub struct SharedServiceGetStructArgs {
   pub key: i32,
 }
@@ -113,7 +111,6 @@ impl Writeable for SharedServiceGetStructArgs {
 }
 
 #[allow(dead_code)]
-#[derive(Show)]
 pub struct SharedServiceGetStructResult {
   pub success: SharedStruct,
 }
