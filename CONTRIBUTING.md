@@ -32,7 +32,7 @@
 
 ### Contributing via GitHub pull requests
 
-1. Create a fork for http://github.com/apache/thrift
+1. Create a fork for http://github.com/maximg/thrift
 1. Create a branch for your changes(best practice is issue as branch name, e.g. THRIFT-9999)
 1. Modify the source to include the improvement/bugfix
 
