@@ -221,7 +221,7 @@ pub trait Protocol {
     fn skip<T: Transport>(&mut self, transport: &mut T, type_: Type) -> Result<()>;
 }
 
-pub trait FromNum {
+pub trait FromNum: Sized {
     fn from_num(num: i32) -> Option<Self>;
 }
 

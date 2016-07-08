@@ -264,7 +264,12 @@ impl Protocol for BinaryProtocol {
 
     fn read_binary<T: Transport>(&mut self, transport: &mut T) -> Result<Vec<u8>> {
         let len = try!(self.read_i32(transport)) as usize;
-        Ok(try!(transport.read_exact(len)))
+        let mut res =  Vec::with_capacity(len);
+        unsafe {
+            res.set_len(len);
+            try!(transport.read_exact(&mut res[..]))
+        };
+        Ok(res)
     }
 
     fn skip<T: Transport>(&mut self, transport: &mut T, type_: Type) -> Result<()> {

@@ -24,7 +24,7 @@ fn test_simple_struct() {
 
 #[test]
 fn test_empty_struct() {
-    let mut protocol = encode(&Empty);
+    let mut protocol = encode(&Empty {});
 
     assert_eq!(protocol.log(), &[
         Struct(Begin(String::from("Empty"))),

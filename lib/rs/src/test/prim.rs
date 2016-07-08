@@ -17,10 +17,10 @@ macro_rules! test_prim_encode {
 }
 
 test_prim_encode! {
-    { test_i8_encode,  (0..100), Byte, i8 },
-    { test_i16_encode, (0..100), I16, i16 },
-    { test_i32_encode, (0..100), I32, i32 },
-    { test_i64_encode, (0..100), I64, i64 },
+    { test_i8_encode,  0..100, Byte, i8 },
+    { test_i16_encode, 0..100, I16, i16 },
+    { test_i32_encode, 0..100, I32, i32 },
+    { test_i64_encode, 0..100, I64, i64 },
     { test_string_encode, vec![
         String::from("hello"),
         String::from("goodbye"),
