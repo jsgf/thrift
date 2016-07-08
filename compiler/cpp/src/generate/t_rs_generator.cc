@@ -421,7 +421,7 @@ string t_rs_generator::render_rs_type(t_type* type) {
       return (((t_base_type*)type)->is_binary() ? "Vec<u8>" : "String");
     case t_base_type::TYPE_BOOL:
       return "bool";
-    case t_base_type::TYPE_BYTE:
+    case t_base_type::TYPE_I8:
       return "i8";
     case t_base_type::TYPE_I16:
       return "i16";
