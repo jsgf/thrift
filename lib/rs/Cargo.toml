@@ -8,5 +8,5 @@ authors = ["Jonathan Reem <jonathan.reem@gmail.com>",
 
 [dependencies]
 podio = "0.1"
-bufstream = "0.1.1"
+bufstream = "0.1.2"
 log = "0"
