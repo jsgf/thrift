@@ -5,6 +5,7 @@ mod prim;
 mod strukt;
 mod enom;
 mod generated;
+mod consts;
 
 pub fn encode<T: Encode>(x: &T) -> MockProtocol {
     let mut protocol = MockProtocol::new();

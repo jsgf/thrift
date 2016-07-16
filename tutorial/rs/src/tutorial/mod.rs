@@ -29,7 +29,7 @@ strukt! {
     num1: i32 => 1,
     num2: i32 => 2,
     op: Operation => 3,
-    comment: Option<String> => 4,
+    comment: String => 4,
   }
 }
 
@@ -41,6 +41,16 @@ strukt! {
   }
 }
 
+pub const INT32CONSTANT: i32 = 9853;
+const_map! {
+  name = MAPCONSTANT,
+  ktype = &'static str,
+  vtype = &'static str,
+  values = {
+    { "hello", "world" },
+    { "goodnight", "moon" },
+  }
+}
 service! {
   trait_name = Calculator,
   processor_name = CalculatorProcessor,

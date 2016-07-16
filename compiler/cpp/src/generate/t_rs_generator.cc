@@ -60,12 +60,19 @@ class t_rs_generator : public t_oop_generator {
   void generate_enum(t_enum*     tenum);
   void generate_struct(t_struct*   tstruct);
   void generate_service(t_service*  tservice);
+  void generate_const(t_const* tconst);
+
+  void print_const_value(std::ofstream& out, std::string name, t_type* type, t_const_value* value);
+  std::string render_const_value(std::ofstream& out,
+                                 std::string name,
+                                 t_type* type,
+                                 t_const_value* value);
 
  private:
   string rs_autogen_comment();
   string rs_imports();
 
-  string render_rs_type(t_type* type);
+  string render_rs_type(t_type* type, bool ref = false);
   string render_suffix(t_type* type);
   string render_type_init(t_type* type);
 
@@ -174,9 +181,11 @@ void t_rs_generator::generate_program() {
   }
 
   // Generate constants
-  // TODO: Implement constant generation.
-  // vector<t_const*> consts = program_->get_consts();
-  // generate_consts(consts);
+  vector<t_const*> consts = program_->get_consts();
+  vector<t_const*>::iterator c_iter;
+  for (c_iter = consts.begin(); c_iter != consts.end(); ++c_iter) {
+    generate_const(*c_iter);
+  }
 
   // Generate services
   for (sv_iter = services.begin(); sv_iter != services.end(); ++sv_iter) {
@@ -408,8 +417,116 @@ void t_rs_generator::generate_service_uses(t_service* tservice) {
   indent(f_mod_) << "\n";
 }
 
+void t_rs_generator::generate_const(t_const* tconst) {
+  auto name = tconst->get_name();
+  if (uppercase(name) != name) {
+    name = uppercase(underscore(tconst->get_name()));
+  }
+  print_const_value(f_mod_, name, tconst->get_type(), tconst->get_value());
+}
+
+// Renders a rust value for a constant
+void t_rs_generator::print_const_value(ofstream& out,
+                                       string name,
+                                       t_type* type,
+                                       t_const_value* value) {
+  if (type->is_base_type()) {
+    auto val = render_const_value(out, name, type, value);
+    indent(out) << "pub const " << name << ": " << render_rs_type(type, true) << " = " << val << ";\n";
+  } else if (type->is_map()) {
+    t_type* ktype = ((t_map*)type)->get_key_type();
+    t_type* vtype = ((t_map*)type)->get_val_type();
+
+    auto kty = render_rs_type(ktype, true);
+    auto vty = render_rs_type(vtype, true);
+
+    indent(out) << "const_map! {\n";
+    indent_up();
+    indent(out) << "name = " << name << ",\n";
+    indent(out) << "ktype = " << kty << ",\n";
+    indent(out) << "vtype = " << vty << ",\n";
+    indent(out) << "values = {\n";
+    indent_up();
+
+    auto map = value->get_map();
+    for (auto it = map.begin(); it != map.end(); ++it) {
+      auto k = render_const_value(out, name, ktype, it->first);
+      auto v = render_const_value(out, name, vtype, it->second);
+      indent(out) << "{ " << k << ", " << v << " },\n";
+    }
+
+    indent_down();
+    indent(out) << "}\n";
+    indent_down();
+    indent(out) << "}\n";
+  } else if (type->is_list()) {
+    t_type* etype = ((t_list*)type)->get_elem_type();
+    auto ty = render_rs_type(etype, true);
+
+    indent(out) << "const_list! {\n";
+    indent_up();
+    indent(out) << "name = " << name << ",\n";
+    indent(out) << "type = " << ty << ",\n";
+    indent(out) << "values = [ ";
+
+    auto list = value->get_list();
+    for (auto it = list.begin(); it != list.end(); ++it) {
+      auto val = render_const_value(out, name, etype, *it);
+      out << val << ", ";
+    }
+
+    out << "]\n";
+    indent_down();
+    indent(out) << "}\n";
+  } else {
+    indent(out) << "// missing thing " << name << "\n";
+  }
+}
+
+string t_rs_generator::render_const_value(ofstream& out,
+                                          string name,
+                                          t_type* type,
+                                          t_const_value* value) {
+  (void)name;
+  std::ostringstream render;
+
+  if (type->is_base_type()) {
+    t_base_type::t_base tbase = ((t_base_type*)type)->get_base();
+
+    switch (tbase) {
+    case t_base_type::TYPE_STRING:
+      if (((t_base_type*)type)->is_binary())
+        render << 'b';
+      render << '"' << get_escaped_string(value) << '"';
+      break;
+    case t_base_type::TYPE_BOOL:
+      render << ((value->get_integer() > 0) ? "true" : "false");
+      break;
+    case t_base_type::TYPE_I8:
+    case t_base_type::TYPE_I16:
+    case t_base_type::TYPE_I32:
+      render << value->get_integer();
+      break;
+    case t_base_type::TYPE_I64:
+      render << value->get_integer() << "LL";
+      break;
+    case t_base_type::TYPE_DOUBLE:
+      if (value->get_type() == t_const_value::CV_INTEGER) {
+        render << value->get_integer();
+      } else {
+        render << value->get_double();
+      }
+      break;
+    default:
+      throw "compiler error: no const of base type " + t_base_type::t_base_name(tbase);
+    }
+  }
+
+  return render.str();
+}
+
 // Renders a rust type representing the passed in type.
-string t_rs_generator::render_rs_type(t_type* type) {
+string t_rs_generator::render_rs_type(t_type* type, bool ref) {
   type = get_true_type(type);
 
   if (type->is_base_type()) {
@@ -418,7 +535,10 @@ string t_rs_generator::render_rs_type(t_type* type) {
     case t_base_type::TYPE_VOID:
       return "()";
     case t_base_type::TYPE_STRING:
-      return (((t_base_type*)type)->is_binary() ? "Vec<u8>" : "String");
+      if (ref)
+        return (((t_base_type*)type)->is_binary() ? "&'static [u8]" : "&'static str");
+      else
+        return (((t_base_type*)type)->is_binary() ? "Vec<u8>" : "String");
     case t_base_type::TYPE_BOOL:
       return "bool";
     case t_base_type::TYPE_I8:
@@ -442,15 +562,15 @@ string t_rs_generator::render_rs_type(t_type* type) {
   } else if (type->is_map()) {
     t_type* ktype = ((t_map*)type)->get_key_type();
     t_type* vtype = ((t_map*)type)->get_val_type();
-    return "HashMap<" + render_rs_type(ktype) + ", " + render_rs_type(vtype) + ">";
+    return "HashMap<" + render_rs_type(ktype, ref) + ", " + render_rs_type(vtype, ref) + ">";
 
   } else if (type->is_set()) {
     t_type* etype = ((t_set*)type)->get_elem_type();
-    return "HashSet<" + render_rs_type(etype) + ">";
+    return "HashSet<" + render_rs_type(etype, ref) + ">";
 
   } else if (type->is_list()) {
     t_type* etype = ((t_list*)type)->get_elem_type();
-    return "Vec<" + render_rs_type(etype) + ">";
+    return "Vec<" + render_rs_type(etype, ref) + ">";
 
   } else {
     throw "INVALID TYPE IN type_to_enum: " + type->get_name();

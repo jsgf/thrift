@@ -10,3 +10,4 @@ authors = ["Jonathan Reem <jonathan.reem@gmail.com>",
 podio = "0.1"
 bufstream = "0.1.2"
 log = "0"
+lazy_static = "0.2"

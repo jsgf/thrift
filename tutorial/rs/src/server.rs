@@ -18,6 +18,8 @@
  */
 
 #[macro_use]
+extern crate lazy_static;
+#[macro_use]
 extern crate thrift;
 extern crate bufstream;
 
