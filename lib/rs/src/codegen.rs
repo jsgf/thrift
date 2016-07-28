@@ -140,10 +140,10 @@ macro_rules! service_client_methods {
 #[macro_export]
 macro_rules! strukt {
     (name = $name:ident,
-     fields = { $($fname:ident: $fty:ty => $id:expr,)+ }) => {
+     fields = { $($fname:ident: $fty:ty => $id:expr,)* }) => {
         #[derive(Debug, Clone, Default)]
         pub struct $name {
-            $(pub $fname: Option<$fty>,)+
+            $(pub $fname: Option<$fty>,)*
         }
 
         impl $crate::protocol::ThriftTyped for $name {
@@ -174,6 +174,7 @@ macro_rules! strukt {
         }
 
         impl $crate::protocol::Decode for $name {
+            #[allow(unused_variables)]
             fn decode<P, T>(&mut self, protocol: &mut P, transport: &mut T) -> $crate::Result<()>
             where P: $crate::Protocol, T: $crate::Transport {
                 #[allow(unused_imports)]
@@ -195,47 +196,6 @@ macro_rules! strukt {
                     }
 
                     try!(protocol.read_field_end(transport));
-                }
-
-                try!(protocol.read_struct_end(transport));
-
-                Ok(())
-            }
-        }
-    };
-    (name = $name:ident, fields = {}) => {
-        #[derive(Debug, Copy, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-        pub struct $name;
-
-        impl $crate::protocol::ThriftTyped for $name {
-            fn typ() -> $crate::protocol::Type { $crate::protocol::Type::Struct }
-        }
-
-        impl $crate::protocol::Encode for $name {
-            fn encode<P, T>(&self, protocol: &mut P, transport: &mut T) -> $crate::Result<()>
-            where P: $crate::Protocol, T: $crate::Transport {
-                #[allow(unused_imports)]
-                use $crate::Protocol;
-
-                try!(protocol.write_struct_begin(transport, stringify!($name)));
-                try!(protocol.write_field_stop(transport));
-                try!(protocol.write_struct_end(transport));
-
-                Ok(())
-            }
-        }
-
-        impl $crate::protocol::Decode for $name {
-            fn decode<P, T>(&mut self, protocol: &mut P, transport: &mut T) -> $crate::Result<()>
-            where P: $crate::Protocol, T: $crate::Transport {
-                #[allow(unused_imports)]
-                use $crate::Protocol;
-
-                try!(protocol.read_struct_begin(transport));
-
-                let (_, ty, _) = try!(protocol.read_field_begin(transport));
-                if ty != $crate::protocol::Type::Stop {
-                     return Err($crate::Error::from($crate::protocol::Error::ProtocolViolation))
                 }
 
                 try!(protocol.read_struct_end(transport));
