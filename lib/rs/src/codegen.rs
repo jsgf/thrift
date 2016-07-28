@@ -174,7 +174,6 @@ macro_rules! strukt {
         }
 
         impl $crate::protocol::Decode for $name {
-            #[allow(unused_variables)]
             fn decode<P, T>(&mut self, protocol: &mut P, transport: &mut T) -> $crate::Result<()>
             where P: $crate::Protocol, T: $crate::Transport {
                 #[allow(unused_imports)]
@@ -187,13 +186,12 @@ macro_rules! strukt {
                 loop {
                     let (_, typ, id) = try!(protocol.read_field_begin(transport));
 
-                    if typ == $crate::protocol::Type::Stop {
-                        break;
-                    } $(else if (typ, id) == (<$fty as ThriftTyped>::typ(), $id) {
-                        try!(self.$fname.decode(protocol, transport));
-                    })* else {
-                        try!(protocol.skip(transport, typ));
-                    }
+                    match (typ, id) {
+                        ($crate::protocol::Type::Stop, _) => break,
+                        $((ty, $id) if ty == <$fty as ThriftTyped>::typ() =>
+                            try!(self.$fname.decode(protocol, transport)),)*
+                        _ => try!(protocol.skip(transport, typ))
+                    };
 
                     try!(protocol.read_field_end(transport));
                 }
