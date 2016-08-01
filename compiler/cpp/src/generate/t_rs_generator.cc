@@ -227,9 +227,7 @@ string t_rs_generator::rs_autogen_comment() {
 }
 
 string t_rs_generator::rs_imports() {
-  return string("#![allow(unused_mut, dead_code, non_snake_case)]\n") +
-          "#[allow(unused_imports)]\n" +
-          "use std::collections::{HashMap, HashSet};\n";
+  return string("#![allow(unused_mut, dead_code, non_snake_case)]\n");
 }
 
 // Generates a type alias, translating a thrift `typedef` to a rust `type`.
@@ -562,11 +560,11 @@ string t_rs_generator::render_rs_type(t_type* type, bool ref) {
   } else if (type->is_map()) {
     t_type* ktype = ((t_map*)type)->get_key_type();
     t_type* vtype = ((t_map*)type)->get_val_type();
-    return "HashMap<" + render_rs_type(ktype, ref) + ", " + render_rs_type(vtype, ref) + ">";
+    return "::std::collections::HashMap<" + render_rs_type(ktype, ref) + ", " + render_rs_type(vtype, ref) + ">";
 
   } else if (type->is_set()) {
     t_type* etype = ((t_set*)type)->get_elem_type();
-    return "HashSet<" + render_rs_type(etype, ref) + ">";
+    return "::std::collections::HashSet<" + render_rs_type(etype, ref) + ">";
 
   } else if (type->is_list()) {
     t_type* etype = ((t_list*)type)->get_elem_type();
