@@ -428,56 +428,14 @@ void t_rs_generator::print_const_value(ofstream& out,
                                        string name,
                                        t_type* type,
                                        t_const_value* value) {
-  if (type->is_base_type()) {
+  type = get_true_type(type);
+
+  if (type->is_base_type() || type->is_enum()) {
     auto val = render_const_value(out, name, type, value);
     indent(out) << "pub const " << name << ": " << render_rs_type(type, true) << " = " << val << ";\n";
-  } else if (type->is_map()) {
-    t_type* ktype = ((t_map*)type)->get_key_type();
-    t_type* vtype = ((t_map*)type)->get_val_type();
-
-    auto kty = render_rs_type(ktype, true);
-    auto vty = render_rs_type(vtype, true);
-
-    indent(out) << "const_map! {\n";
-    indent_up();
-    indent(out) << "name = " << name << ",\n";
-    indent(out) << "ktype = " << kty << ",\n";
-    indent(out) << "vtype = " << vty << ",\n";
-    indent(out) << "values = {\n";
-    indent_up();
-
-    auto map = value->get_map();
-    for (auto it = map.begin(); it != map.end(); ++it) {
-      auto k = render_const_value(out, name, ktype, it->first);
-      auto v = render_const_value(out, name, vtype, it->second);
-      indent(out) << "{ " << k << ", " << v << " },\n";
-    }
-
-    indent_down();
-    indent(out) << "}\n";
-    indent_down();
-    indent(out) << "}\n";
-  } else if (type->is_list()) {
-    t_type* etype = ((t_list*)type)->get_elem_type();
-    auto ty = render_rs_type(etype, true);
-
-    indent(out) << "const_list! {\n";
-    indent_up();
-    indent(out) << "name = " << name << ",\n";
-    indent(out) << "type = " << ty << ",\n";
-    indent(out) << "values = [ ";
-
-    auto list = value->get_list();
-    for (auto it = list.begin(); it != list.end(); ++it) {
-      auto val = render_const_value(out, name, etype, *it);
-      out << val << ", ";
-    }
-
-    out << "]\n";
-    indent_down();
-    indent(out) << "}\n";
   } else {
-    indent(out) << "// missing thing " << name << "\n";
+    auto val = render_const_value(out, name, type, value);
+    indent(out) << "konst! { const " << name << ": " << render_rs_type(type, true) << " = " << val << " };\n";
   }
 }
 
@@ -485,8 +443,9 @@ string t_rs_generator::render_const_value(ofstream& out,
                                           string name,
                                           t_type* type,
                                           t_const_value* value) {
-  (void)name;
   std::ostringstream render;
+
+  type = get_true_type(type);
 
   if (type->is_base_type()) {
     t_base_type::t_base tbase = ((t_base_type*)type)->get_base();
@@ -503,10 +462,8 @@ string t_rs_generator::render_const_value(ofstream& out,
     case t_base_type::TYPE_I8:
     case t_base_type::TYPE_I16:
     case t_base_type::TYPE_I32:
-      render << value->get_integer();
-      break;
     case t_base_type::TYPE_I64:
-      render << value->get_integer() << "LL";
+      render << value->get_integer();
       break;
     case t_base_type::TYPE_DOUBLE:
       if (value->get_type() == t_const_value::CV_INTEGER) {
@@ -518,6 +475,67 @@ string t_rs_generator::render_const_value(ofstream& out,
     default:
       throw "compiler error: no const of base type " + t_base_type::t_base_name(tbase);
     }
+  } else if (type->is_map()) {
+    t_type* ktype = ((t_map*)type)->get_key_type();
+    t_type* vtype = ((t_map*)type)->get_val_type();
+
+    render << "map_literal! { ";
+    auto map = value->get_map();
+    for (auto it = map.begin(); it != map.end(); ++it) {
+      auto k = render_const_value(out, name, ktype, it->first);
+      auto v = render_const_value(out, name, vtype, it->second);
+      render << k << " => " << v << ", ";
+    }
+    render << "}";
+  } else if (type->is_set()) {
+    t_type* ty = ((t_set*)type)->get_elem_type();
+
+    render << "set_literal! [ ";
+    auto set = value->get_list();
+    for (auto it = set.begin(); it != set.end(); ++it) {
+      auto v = render_const_value(out, name, ty, *it);
+      render << v << ", ";
+    }
+    render << "]";
+  } else if (type->is_list()) {
+    t_type* ty = ((t_list*)type)->get_elem_type();
+
+    render << "vec! [ ";
+    auto list = value->get_list();
+    for (auto it = list.begin(); it != list.end(); ++it) {
+      auto v = render_const_value(out, name, ty, *it);
+      render << v << ", ";
+    }
+    render << "]";
+  } else if (type->is_struct() || type->is_xception()) {
+    auto fields = ((t_struct*)type)->get_members();
+    auto vals = value->get_map();
+    auto sname = pascalcase(type->get_name());
+
+    render << sname << " { ";
+
+    for (auto fit = fields.begin(); fit != fields.end(); ++fit) {
+      bool found = false;
+
+      render << (*fit)->get_name() << ": ";
+      for (auto vit = vals.begin(); vit != vals.end(); ++vit) {
+        if (vit->first->get_string() == (*fit)->get_name()) {
+          auto val = render_const_value(out, name, (*fit)->get_type(), vit->second);
+          found = true;
+          render << "Some(" << val << "), ";
+        }
+      }
+      if (!found) {
+        render << "None, ";
+      }
+    }
+
+    render << " }";
+  } else if (type->is_enum()) {
+    auto name = pascalcase(type->get_name());
+    render << name << "::" << value->get_identifier_name();
+  } else {
+    render << "/* Missing thing " << name << " */";
   }
 
   return render.str();

@@ -253,38 +253,34 @@ macro_rules! enom {
 }
 
 #[macro_export]
-macro_rules! const_map {
-    (name = $name:ident,
-     ktype = $ktype:ty,
-     vtype = $vtype:ty,
-     values = { $({ $key:expr, $val:expr },)+ }) => {
-         lazy_static! {
-             pub static ref $name: ::std::collections::HashMap<$ktype,$vtype> = {
-                 let mut m = ::std::collections::HashMap::new();
-                 $(m.insert($key, $val);)+
-                 m
-             };
-         }
-     };
-    (name = $name:ident,
-     ktype = $ktype:ty,
-     vtype = $vtype:ty,
-     values = { }) => {
-         lazy_static! {
-             pub static ref $name: ::std::collections::HashMap<$ktype,$vtype> = {
-                 ::std::collections::HashMap::new()
-             };
-         }
-     }
+macro_rules! map_literal {
+     ( $($key: expr => $val: expr),+ ) => (
+        {
+            let mut m = ::std::collections::HashMap::new();
+            $(m.insert($key, $val);)+
+            m
+        }
+    );
+    ( ) => (::std::collections::HashMap::new())
 }
 
 #[macro_export]
-macro_rules! const_list {
-    (name = $name:ident,
-     type = $ltype:ty,
-     values = [ $($val:expr,)* ]) => {
-         lazy_static! {
-             pub static ref $name: Vec<$ltype> = vec![ $($val,)* ];
-         }
-     }
+macro_rules! set_literal {
+    ($($val:expr),+) => (
+        {
+            let mut s = ::std::collections::HashSet::new();
+            $(s.insert($val);)+
+            s
+        }
+    );
+    ( ) => (::std::collections::HashSet::new())
+}
+
+#[macro_export]
+macro_rules! konst {
+    (const $name:ident: $ty:ty = $val:expr) => {
+        lazy_static! {
+            pub static ref $name: $ty = { $val };
+        }
+    }
 }

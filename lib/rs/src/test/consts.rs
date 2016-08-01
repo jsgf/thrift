@@ -1,12 +1,22 @@
 use test::generated::*;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 macro_rules! hashmap {
-    ($( $key: expr => $val: expr ),*) => {{
+    ($( $key: expr => $val: expr ),+) => {{
          let mut map = HashMap::new();
-         $( map.insert($key, $val); )*
+         $( map.insert($key, $val); )+
          map
-    }}
+    }};
+    () => (HashMap::new())
+}
+
+macro_rules! hashset {
+    ($($val:expr),+) => {{
+        let mut set = HashSet::new();
+        $( set.insert($val); )+
+        set
+    }};
+    () => (HashSet::new())
 }
 
 #[test]
@@ -17,7 +27,7 @@ fn test_map() {
 
 #[test]
 fn test_map_empty() {
-    let map = HashMap::new();
+    let map = hashmap! {};
     assert_eq!(*EMPTY_MAP, map);
 }
 
@@ -37,4 +47,16 @@ fn test_str_list() {
 fn test_empty_list() {
     let l = vec![];
     assert_eq!(*EMPTY_LIST, l);
+}
+
+#[test]
+fn test_set() {
+    let set = hashset![1,2,3];
+    assert_eq!(*SET_CONST, set);
+}
+
+#[test]
+fn test_empty_set() {
+    let set = hashset![];
+    assert_eq!(*EMPTY_SET, set);
 }

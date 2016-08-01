@@ -43,38 +43,16 @@ enom! {
     default = Sub
 }
 
-const_list! {
-    name = LIST_CONST,
-    type = i32,
-    values = [ 1,2,3,]
-}
+konst! { const LIST_CONST: Vec<i32> = vec![ 1,2,3 ]}
 
-const_list! {
-    name = EMPTY_LIST,
-    type = i32,
-    values = []
-}
+konst! { const EMPTY_LIST: Vec<i32> = vec! [] }
 
-const_list! {
-    name = STRING_LIST,
-    type = &'static str,
-    values = [ "hello", "world", ]
-}
+konst! { const STRING_LIST: Vec<&'static str> = vec! [ "hello", "world" ]}
 
-const_map! {
-    name = MAP_CONST,
-    ktype = i32,
-    vtype = &'static str,
-    values = {
-        { 1, "foo" },
-        { 2, "bar" },
-    }
-}
+konst! { const MAP_CONST: ::std::collections::HashMap<i32, &'static str> = map_literal! { 1 => "foo", 2 => "bar"}}
 
-const_map! {
-    name = EMPTY_MAP,
-    ktype = i32,
-    vtype = i32,
-    values = {
-    }
-}
+konst! { const EMPTY_MAP: ::std::collections::HashMap<i32, i32> = map_literal! {}}
+
+konst! { const SET_CONST: ::std::collections::HashSet<i32> = set_literal! [ 1, 2, 3, 3, 2] }
+
+konst! { const EMPTY_SET: ::std::collections::HashSet<i32> = set_literal! [ ]}
