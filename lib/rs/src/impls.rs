@@ -5,7 +5,7 @@ pub use std::collections::{HashSet, HashMap};
 pub use std::hash::Hash;
 
 impl ThriftTyped for bool { fn typ() -> Type { Type::Bool } }
-impl ThriftTyped for i8  { fn typ() -> Type { Type::Byte } }
+impl ThriftTyped for i8  { fn typ() -> Type { Type::I8 } }
 impl ThriftTyped for i16 { fn typ() -> Type { Type::I16 } }
 impl ThriftTyped for i32 { fn typ() -> Type { Type::I32 } }
 impl ThriftTyped for i64 { fn typ() -> Type { Type::I64 } }

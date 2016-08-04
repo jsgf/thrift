@@ -275,7 +275,7 @@ impl Protocol for BinaryProtocol {
     fn skip<T: Transport>(&mut self, transport: &mut T, type_: Type) -> Result<()> {
         match type_ {
             Type::Bool => { try!(self.read_bool(transport)); }
-            Type::Byte => { try!(self.read_byte(transport)); }
+            Type::I8 => { try!(self.read_byte(transport)); }
             Type::I16 => { try!(self.read_i16(transport)); }
             Type::I32 => { try!(self.read_i32(transport)); }
             Type::I64 => { try!(self.read_i64(transport)); }
