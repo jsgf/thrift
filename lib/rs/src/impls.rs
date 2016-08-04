@@ -12,10 +12,20 @@ impl ThriftTyped for i64 { fn typ() -> Type { Type::I64 } }
 impl ThriftTyped for f64 { fn typ() -> Type { Type::Double } }
 impl ThriftTyped for () { fn typ() -> Type { Type::Void } }
 impl ThriftTyped for String { fn typ() -> Type { Type::String } }
+impl ThriftTyped for Vec<u8> { fn typ() -> Type { Type::String } }
 impl<T: ThriftTyped> ThriftTyped for Vec<T> { fn typ() -> Type { Type::List } }
 impl<T: ThriftTyped> ThriftTyped for Option<T> { fn typ() -> Type { T::typ() } }
 impl<T: ThriftTyped> ThriftTyped for HashSet<T> { fn typ() -> Type { Type::Set } }
 impl<K: ThriftTyped, V: ThriftTyped> ThriftTyped for HashMap<K, V> { fn typ() -> Type { Type::Map } }
+
+impl Encode for Vec<u8> {
+    fn encode<P, T>(&self, protocol: &mut P, transport: &mut T) -> Result<()>
+    where P: Protocol, T: Transport {
+        try!(protocol.write_binary(transport, &self[..]));
+
+        Ok(())
+    }
+}
 
 impl<X: Encode> Encode for Vec<X> {
     fn encode<P, T>(&self, protocol: &mut P, transport: &mut T) -> Result<()>
@@ -107,6 +117,13 @@ where D: Decode, P: Protocol, T: Transport {
      Ok(elem)
 }
 
+impl Decode for Vec<u8> {
+    fn decode<P, T>(&mut self, protocol: &mut P, transport: &mut T) -> Result<()>
+    where P: Protocol, T: Transport {
+        *self = try!(protocol.read_binary(transport));
+        Ok(())
+    }
+}
 impl<X: Decode> Decode for Vec<X> {
     fn decode<P, T>(&mut self, protocol: &mut P, transport: &mut T) -> Result<()>
     where P: Protocol, T: Transport {
