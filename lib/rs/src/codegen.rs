@@ -254,10 +254,10 @@ macro_rules! enom {
 
 #[macro_export]
 macro_rules! map_literal {
-     ( $($key: expr => $val: expr),+ ) => (
+     ( $($key: expr => $val: expr),+ $(,)*) => (
         {
             let mut m = ::std::collections::HashMap::new();
-            $(m.insert($key, $val);)+
+            $(m.insert(::std::convert::From::from($key), ::std::convert::From::from($val));)+
             m
         }
     );
@@ -266,10 +266,10 @@ macro_rules! map_literal {
 
 #[macro_export]
 macro_rules! set_literal {
-    ($($val:expr),+) => (
+    ($($val:expr),+ $(,)*) => (
         {
             let mut s = ::std::collections::HashSet::new();
-            $(s.insert($val);)+
+            $(s.insert(::std::convert::From::from($val));)+
             s
         }
     );

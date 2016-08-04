@@ -435,7 +435,7 @@ void t_rs_generator::print_const_value(ofstream& out,
     indent(out) << "pub const " << name << ": " << render_rs_type(type, true) << " = " << val << ";\n";
   } else {
     auto val = render_const_value(out, name, type, value);
-    indent(out) << "konst! { const " << name << ": " << render_rs_type(type, true) << " = " << val << " };\n";
+    indent(out) << "konst! { const " << name << ": " << render_rs_type(type, true) << " = " << val << " }\n";
   }
 }
 
@@ -515,22 +515,17 @@ string t_rs_generator::render_const_value(ofstream& out,
     render << sname << " { ";
 
     for (auto fit = fields.begin(); fit != fields.end(); ++fit) {
-      bool found = false;
 
-      render << (*fit)->get_name() << ": ";
       for (auto vit = vals.begin(); vit != vals.end(); ++vit) {
         if (vit->first->get_string() == (*fit)->get_name()) {
           auto val = render_const_value(out, name, (*fit)->get_type(), vit->second);
-          found = true;
-          render << "Some(" << val << "), ";
+          render << (*fit)->get_name() << ": Some(" << val << "), ";
+          break;
         }
-      }
-      if (!found) {
-        render << "None, ";
       }
     }
 
-    render << " }";
+    render << "..::std::default::Default::default() }";
   } else if (type->is_enum()) {
     auto name = pascalcase(type->get_name());
     render << name << "::" << value->get_identifier_name();
