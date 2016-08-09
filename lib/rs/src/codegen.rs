@@ -40,7 +40,7 @@ macro_rules! service_processor {
         }
 
         $(strukt! { name = $siname, derive = [ Debug ], fields = { $($saname: $saty => $said,)* } }
-          strukt! { name = $soname, derive = [ Debug ],fields = { success: $srty => 0, $($sename: $sety => $seid,)* } })*
+          strukt! { name = $soname, derive = [ Debug ], fields = { success: $srty => 0, $($sename: $sety => $seid,)* } })*
 
         impl<$($boundty: $bound),*> $name<$($boundty),*> {
             pub fn new($($fname: $fty),*) -> Self {

@@ -540,5 +540,23 @@
       ]
     },
     "workdir": "lua"
+  },
+  {
+    "name": "rs",
+    "client": {
+      "transports": [
+        "buffered"
+      ],
+      "sockets": [
+        "ip"
+      ],
+      "protocols": [
+        "binary"
+      ],
+      "command": [
+        "target/debug/test_client"
+      ]
+    },
+    "workdir": "rs"
   }
 ]
