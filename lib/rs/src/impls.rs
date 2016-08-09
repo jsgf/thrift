@@ -1,7 +1,7 @@
 pub use protocol::{self, Encode, Decode, Type, ThriftTyped};
 pub use {Protocol, Transport, Result, Error};
 
-pub use std::collections::{HashSet, HashMap};
+pub use std::collections::{HashSet, HashMap, BTreeSet, BTreeMap};
 pub use std::hash::Hash;
 
 impl ThriftTyped for bool { fn typ() -> Type { Type::Bool } }
@@ -16,7 +16,9 @@ impl ThriftTyped for Vec<u8> { fn typ() -> Type { Type::String } }
 impl<T: ThriftTyped> ThriftTyped for Vec<T> { fn typ() -> Type { Type::List } }
 impl<T: ThriftTyped> ThriftTyped for Option<T> { fn typ() -> Type { T::typ() } }
 impl<T: ThriftTyped> ThriftTyped for HashSet<T> { fn typ() -> Type { Type::Set } }
+impl<T: ThriftTyped> ThriftTyped for BTreeSet<T> { fn typ() -> Type { Type::Set } }
 impl<K: ThriftTyped, V: ThriftTyped> ThriftTyped for HashMap<K, V> { fn typ() -> Type { Type::Map } }
+impl<K: ThriftTyped, V: ThriftTyped> ThriftTyped for BTreeMap<K, V> { fn typ() -> Type { Type::Map } }
 
 impl Encode for Vec<u8> {
     fn encode<P, T>(&self, protocol: &mut P, transport: &mut T) -> Result<()>
@@ -57,7 +59,38 @@ impl<X: Encode + Hash + Eq> Encode for HashSet<X> {
     }
 }
 
+impl<X: Encode + Ord + Eq> Encode for BTreeSet<X> {
+    fn encode<P, T>(&self, protocol: &mut P, transport: &mut T) -> Result<()>
+    where P: Protocol, T: Transport {
+        try!(protocol.write_set_begin(transport, X::typ(), self.len()));
+
+        for el in self {
+            try!(el.encode(protocol, transport));
+        }
+
+        try!(protocol.write_set_end(transport));
+
+        Ok(())
+    }
+}
+
 impl<K: Encode + Hash + Eq, V: Encode> Encode for HashMap<K, V> {
+    fn encode<P, T>(&self, protocol: &mut P, transport: &mut T) -> Result<()>
+    where P: Protocol, T: Transport {
+        try!(protocol.write_map_begin(transport, K::typ(), V::typ(), self.len()));
+
+        for (k, v) in self.iter() {
+            try!(k.encode(protocol, transport));
+            try!(v.encode(protocol, transport));
+        }
+
+        try!(protocol.write_map_end(transport));
+
+        Ok(())
+    }
+}
+
+impl<K: Encode + Ord + Eq, V: Encode> Encode for BTreeMap<K, V> {
     fn encode<P, T>(&self, protocol: &mut P, transport: &mut T) -> Result<()>
     where P: Protocol, T: Transport {
         try!(protocol.write_map_begin(transport, K::typ(), V::typ(), self.len()));
@@ -156,6 +189,21 @@ impl<X: Decode + Eq + Hash> Decode for HashSet<X> {
     }
 }
 
+impl<X: Decode + Ord + Hash> Decode for BTreeSet<X> {
+    fn decode<P, T>(&mut self, protocol: &mut P, transport: &mut T) -> Result<()>
+    where P: Protocol, T: Transport {
+        let (typ, len) = try!(protocol.read_set_begin(transport));
+
+        if typ == X::typ() {
+            for _ in 0..len { self.insert(try!(decode(protocol, transport))); }
+            try!(protocol.read_set_end(transport));
+            Ok(())
+        } else {
+            Err(Error::from(protocol::Error::ProtocolViolation))
+        }
+    }
+}
+
 impl<K: Decode + Eq + Hash, V: Decode> Decode for HashMap<K, V> {
     fn decode<P, T>(&mut self, protocol: &mut P, transport: &mut T) -> Result<()>
     where P: Protocol, T: Transport {
@@ -163,6 +211,26 @@ impl<K: Decode + Eq + Hash, V: Decode> Decode for HashMap<K, V> {
 
         if ktyp == K::typ() && vtyp == V::typ() {
             self.reserve(len as usize);
+            for _ in 0..len {
+                let key = try!(decode(protocol, transport));
+                let value = try!(decode(protocol, transport));
+                self.insert(key, value);
+            }
+
+            try!(protocol.read_map_end(transport));
+            Ok(())
+        } else {
+            Err(Error::from(protocol::Error::ProtocolViolation))
+        }
+    }
+}
+
+impl<K: Decode + Ord + Hash, V: Decode> Decode for BTreeMap<K, V> {
+    fn decode<P, T>(&mut self, protocol: &mut P, transport: &mut T) -> Result<()>
+    where P: Protocol, T: Transport {
+        let (ktyp, vtyp, len) = try!(protocol.read_map_begin(transport));
+
+        if ktyp == K::typ() && vtyp == V::typ() {
             for _ in 0..len {
                 let key = try!(decode(protocol, transport));
                 let value = try!(decode(protocol, transport));

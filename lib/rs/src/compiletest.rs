@@ -3,6 +3,7 @@ use std::collections::{HashSet, HashMap};
 
 strukt! {
     name = Simple,
+    derive = [ Eq, PartialEq, Debug, Hash, ],
     fields = {
         key: String => 16,
     }
@@ -10,6 +11,7 @@ strukt! {
 
 strukt! {
     name = DeeplyNested,
+    derive = [ Eq, PartialEq, Debug, ],
     fields = {
         nested: HashSet<Vec<Vec<Vec<Vec<i32>>>>> => 6,
     }
@@ -17,6 +19,7 @@ strukt! {
 
 strukt! {
     name = ReferencesOther,
+    derive = [ Eq, PartialEq, Debug, ],
     fields = {
         other: DeeplyNested => 2,
         another: Simple => 3,
@@ -61,6 +64,7 @@ service! {
 
 strukt! {
      name = Exception,
+     derive = [ Eq, PartialEq, Debug, Hash, ],
      fields = {
           name: String => 0,
           message: String => 1,

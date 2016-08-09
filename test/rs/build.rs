@@ -8,7 +8,7 @@ fn build_thrift(thriftfile: &'static str) {
     let target = std::env::var("CARGO_MANIFEST_DIR").unwrap();
     let mut cmd = std::process::Command::new(thrift);
     cmd.current_dir(target)
-        .args(&["--gen", "rs"])
+        .args(&["--gen", "rs:btree_mapset"])
         .args(&["--out", "src"])
         .arg(thriftfile);
     let status = cmd.status().ok().expect("Could not execute thrift");

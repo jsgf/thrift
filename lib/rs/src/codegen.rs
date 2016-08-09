@@ -39,8 +39,8 @@ macro_rules! service_processor {
             _ugh: ()
         }
 
-        $(strukt! { name = $siname, fields = { $($saname: $saty => $said,)* } }
-          strukt! { name = $soname, fields = { success: $srty => 0, $($sename: $sety => $seid,)* } })*
+        $(strukt! { name = $siname, derive = [ Debug ], fields = { $($saname: $saty => $said,)* } }
+          strukt! { name = $soname, derive = [ Debug ],fields = { success: $srty => 0, $($sename: $sety => $seid,)* } })*
 
         impl<$($boundty: $bound),*> $name<$($boundty),*> {
             pub fn new($($fname: $fty),*) -> Self {
@@ -140,8 +140,9 @@ macro_rules! service_client_methods {
 #[macro_export]
 macro_rules! strukt {
     (name = $name:ident,
+     derive = [ $( $derive:ident ),* $(,)* ],
      fields = { $($fname:ident: $fty:ty => $id:expr,)* }) => {
-        #[derive(Debug, Clone, Default)]
+        #[derive(Clone, Default$(,$derive)*)]
         pub struct $name {
             $(pub $fname: Option<$fty>,)*
         }
@@ -253,7 +254,7 @@ macro_rules! enom {
 }
 
 #[macro_export]
-macro_rules! map_literal {
+macro_rules! hashmap_literal {
      ( $($key: expr => $val: expr),+ $(,)*) => (
         {
             let mut m = ::std::collections::HashMap::new();
@@ -265,7 +266,19 @@ macro_rules! map_literal {
 }
 
 #[macro_export]
-macro_rules! set_literal {
+macro_rules! btreemap_literal {
+     ( $($key: expr => $val: expr),+ $(,)*) => (
+        {
+            let mut m = ::std::collections::BTreeMap::new();
+            $(m.insert(::std::convert::From::from($key), ::std::convert::From::from($val));)+
+            m
+        }
+    );
+    ( ) => (::std::collections::BTreeMap::new())
+}
+
+#[macro_export]
+macro_rules! hashset_literal {
     ($($val:expr),+ $(,)*) => (
         {
             let mut s = ::std::collections::HashSet::new();
@@ -274,6 +287,18 @@ macro_rules! set_literal {
         }
     );
     ( ) => (::std::collections::HashSet::new())
+}
+
+#[macro_export]
+macro_rules! btreeset_literal {
+    ($($val:expr),+ $(,)*) => (
+        {
+            let mut s = ::std::collections::BTreeSet::new();
+            $(s.insert(::std::convert::From::from($val));)+
+            s
+        }
+    );
+    ( ) => (::std::collections::BTreeSet::new())
 }
 
 #[macro_export]

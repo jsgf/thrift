@@ -33,6 +33,26 @@ using std::ofstream;
 using std::string;
 using std::vector;
 
+// Which trait implementations to derive; Default and Clone are always generated.
+enum Derives {
+  DERIVE_DEBUG = 1 << 0,
+  DERIVE_HASH = 1 << 1,
+  DERIVE_EQ = 1 << 2,
+  DERIVE_PARTIALEQ = 1 << 3,
+  DERIVE_COPY = 1 << 4,
+  DERIVE_ORD = 1 << 5,
+  DERIVE_PARTIALORD = 1 << 6,
+};
+
+const unsigned DERIVE_ALL =
+    DERIVE_DEBUG |
+    DERIVE_HASH |
+    DERIVE_EQ |
+    DERIVE_PARTIALEQ |
+    DERIVE_ORD |
+    DERIVE_PARTIALORD |
+    DERIVE_COPY;
+
 /**
  * Rust code generator.
  */
@@ -43,10 +63,16 @@ class t_rs_generator : public t_oop_generator {
                  const string& option_string)
     : t_oop_generator(program)
   {
-    (void) parsed_options;
     (void) option_string;
+
+    gen_btree_mapset_ = false;
     // FIXME: change back to gen-rs when we finalize mod structure for generated code
     out_dir_base_ = "src";
+    for(auto iter = parsed_options.begin(); iter != parsed_options.end(); ++iter) {
+      if(iter->first.compare("btree_mapset") == 0) {
+        gen_btree_mapset_ = true;
+      }
+    }
   }
 
   void init_generator();
@@ -72,6 +98,7 @@ class t_rs_generator : public t_oop_generator {
   string rs_autogen_comment();
   string rs_imports();
 
+  unsigned rs_type_derives(t_type* type, uint derives);
   string render_rs_type(t_type* type, bool ref = false);
   string render_suffix(t_type* type);
   string render_type_init(t_type* type);
@@ -120,6 +147,7 @@ class t_rs_generator : public t_oop_generator {
 
  private:
   ofstream f_mod_;
+  bool     gen_btree_mapset_;
 };
 
 /*
@@ -274,6 +302,25 @@ void t_rs_generator::generate_struct(t_struct* tstruct) {
   indent_up();
 
   indent(f_mod_) << "name = " << sname << ",\n";
+
+  unsigned derives = rs_type_derives(tstruct, DERIVE_ALL);
+
+  indent(f_mod_) << "derive = [";
+  if (derives & DERIVE_COPY)
+    f_mod_ << "Copy, ";
+  if (derives & DERIVE_DEBUG)
+    f_mod_ << "Debug, ";
+  if (derives & DERIVE_EQ)
+    f_mod_ << "Eq, ";
+  if (derives & DERIVE_PARTIALEQ)
+    f_mod_ << "PartialEq, ";
+  if (derives & DERIVE_ORD)
+    f_mod_ << "Ord, ";
+  if (derives & DERIVE_PARTIALORD)
+    f_mod_ << "PartialOrd, ";
+  if (derives & DERIVE_HASH)
+    f_mod_ << "Hash, ";
+  f_mod_ << "],\n";
 
   indent(f_mod_) << "fields = {\n";
   indent_up();
@@ -479,7 +526,10 @@ string t_rs_generator::render_const_value(ofstream& out,
     t_type* ktype = ((t_map*)type)->get_key_type();
     t_type* vtype = ((t_map*)type)->get_val_type();
 
-    render << "map_literal! { ";
+    if (gen_btree_mapset_)
+      render << "btreemap_literal! { ";
+    else
+      render << "hashmap_literal! { ";
     auto map = value->get_map();
     for (auto it = map.begin(); it != map.end(); ++it) {
       auto k = render_const_value(out, name, ktype, it->first);
@@ -490,7 +540,10 @@ string t_rs_generator::render_const_value(ofstream& out,
   } else if (type->is_set()) {
     t_type* ty = ((t_set*)type)->get_elem_type();
 
-    render << "set_literal! [ ";
+    if (gen_btree_mapset_)
+      render << "btreeset_literal! { ";
+    else
+      render << "hashset_literal! { ";
     auto set = value->get_list();
     for (auto it = set.begin(); it != set.end(); ++it) {
       auto v = render_const_value(out, name, ty, *it);
@@ -536,6 +589,61 @@ string t_rs_generator::render_const_value(ofstream& out,
   return render.str();
 }
 
+uint t_rs_generator::rs_type_derives(t_type* type, uint derives) {
+  type = get_true_type(type);
+
+  if (type->is_base_type()) {
+    t_base_type::t_base tbase = ((t_base_type*)type)->get_base();
+
+    switch (tbase) {
+      case t_base_type::TYPE_DOUBLE:
+        derives &= ~DERIVE_EQ & ~DERIVE_ORD & ~DERIVE_HASH;
+        break;
+      case t_base_type::TYPE_STRING:
+        derives &= ~DERIVE_COPY;
+        break;
+      default:
+        // unchanged
+        break;
+    }
+  } else if (type->is_set()) {
+    t_type* etype = ((t_set*)type)->get_elem_type();
+
+    derives &= ~DERIVE_COPY & rs_type_derives(etype, DERIVE_ALL);
+    if (!gen_btree_mapset_)
+      derives &= ~DERIVE_HASH & ~DERIVE_ORD;
+  } else if (type->is_map()) {
+    t_type* ktype = ((t_map*)type)->get_key_type();
+    t_type* vtype = ((t_map*)type)->get_val_type();
+
+    unsigned kderives = rs_type_derives(ktype, DERIVE_ALL);
+    unsigned vderives = rs_type_derives(vtype, DERIVE_ALL);
+
+    derives &= ~DERIVE_COPY;
+    if (!gen_btree_mapset_)
+      derives &= ~DERIVE_HASH & ~DERIVE_ORD;
+
+    derives &= kderives;
+    derives &= vderives;  // XXX overly conservative
+  } else if (type->is_list()) {
+      t_type* etype = ((t_list*)type)->get_elem_type();
+
+      derives &= ~DERIVE_COPY & rs_type_derives(etype, DERIVE_ALL);
+  } else if (type->is_struct() || type->is_xception()) {
+      auto fields = ((t_struct*)type)->get_members();
+
+      for (auto fit = fields.begin(); fit != fields.end(); ++fit) {
+        derives &= rs_type_derives((*fit)->get_type(), DERIVE_ALL);
+      }
+  } else if (type->is_enum()) {
+    // do nothing
+  } else {
+    throw "missing unhandled type " + type->get_name();
+  }
+
+  return derives;
+} 
+
 // Renders a rust type representing the passed in type.
 string t_rs_generator::render_rs_type(t_type* type, bool ref) {
   type = get_true_type(type);
@@ -573,11 +681,23 @@ string t_rs_generator::render_rs_type(t_type* type, bool ref) {
   } else if (type->is_map()) {
     t_type* ktype = ((t_map*)type)->get_key_type();
     t_type* vtype = ((t_map*)type)->get_val_type();
-    return "::std::collections::HashMap<" + render_rs_type(ktype, ref) + ", " + render_rs_type(vtype, ref) + ">";
+    string maptype;
+    if (gen_btree_mapset_)
+      maptype = "BTreeMap";
+    else
+      maptype = "HashMap";
+
+    return "::std::collections::" + maptype + "<" + render_rs_type(ktype, ref) + ", " + render_rs_type(vtype, ref) + ">";
 
   } else if (type->is_set()) {
     t_type* etype = ((t_set*)type)->get_elem_type();
-    return "::std::collections::HashSet<" + render_rs_type(etype, ref) + ">";
+    string settype;
+    if (gen_btree_mapset_)
+      settype = "BTreeSet";
+    else
+      settype = "HashSet";
+
+    return "::std::collections::" + settype + "<" + render_rs_type(etype, ref) + ">";
 
   } else if (type->is_list()) {
     t_type* etype = ((t_list*)type)->get_elem_type();
@@ -589,5 +709,6 @@ string t_rs_generator::render_rs_type(t_type* type, bool ref) {
   return ""; // silence the compiler warning
 }
 
-THRIFT_REGISTER_GENERATOR(rs, "Rust", "")
+THRIFT_REGISTER_GENERATOR(rs, "Rust",
+    "    btree_mapset:     Use BTreeMap/BTreeSet for maps and sets, rather than Hash*\n")
 
