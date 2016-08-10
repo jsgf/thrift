@@ -33,6 +33,8 @@ use thrift::protocol::binary_protocol::BinaryProtocol;
 mod thrift_test;
 mod small_test;
 
+use thrift_test::*;
+
 macro_rules! map {
     () => { BTreeMap::new() };
     ( $($key:expr => $val:expr ),* $(,)* ) => {
@@ -85,7 +87,7 @@ fn main() {
 
     let stream = BufStream::new(TcpStream::connect((host.as_ref(), port)).unwrap());
 
-    let mut client = thrift_test::ThriftTestClient::new(BinaryProtocol, stream);
+    let mut client = ThriftTestClient::new(BinaryProtocol, stream);
 
     match client.testVoid() {
         Err(e) => panic!("testVoid failed: {:?}", e),
@@ -236,7 +238,7 @@ fn main() {
     }
 
     {
-        let out = thrift_test::Xtruct {
+        let out = Xtruct {
             string_thing: Some("Zero".into()),
             byte_thing: Some(1),
             i32_thing: Some(-3),
@@ -246,8 +248,8 @@ fn main() {
     }
 
     {
-        let out = thrift_test::Xtruct2 {
-            struct_thing: Some(thrift_test::Xtruct {
+        let out = Xtruct2 {
+            struct_thing: Some(Xtruct {
                 string_thing: Some("Zero".into()),
                 byte_thing: Some(1),
                 i32_thing: Some(-3),
@@ -305,7 +307,6 @@ fn main() {
     }
 
     {
-        use thrift_test::*;
         use thrift_test::Numberz::*;
 
         let insane = Insanity {
@@ -335,27 +336,20 @@ fn main() {
         }
     }
 
-    {
-        use thrift_test::*;
-
-        match client.testMulti(42, 4242, 424242, map! { 1_i16 => "blah", 2_i16 => "thing" }, Numberz::EIGHT, 24) {
-            Ok(Some(ref res)) if res == &Xtruct { string_thing: Some("Hello2".into()), byte_thing: Some(42), i32_thing: Some(4242), i64_thing: Some(424242) } =>
-                println!("testMulti OK got res {:?}", res),
-            Ok(bad) => panic!("testMulti failed bad {:?}", bad),
-            Err(err) => panic!("testMulti failed err {:?}", err),
-        }
+    match client.testMulti(42, 4242, 424242, map! { 1_i16 => "blah", 2_i16 => "thing" }, Numberz::EIGHT, 24) {
+        Ok(Some(ref res)) if res == &Xtruct { string_thing: Some("Hello2".into()), byte_thing: Some(42), i32_thing: Some(4242), i64_thing: Some(424242) } =>
+            println!("testMulti OK got res {:?}", res),
+        Ok(bad) => panic!("testMulti failed bad {:?}", bad),
+        Err(err) => panic!("testMulti failed err {:?}", err),
     }
 
-    {
-        use thrift_test::*;
-        match client.testException("Xception".into()) {
-            Ok(Ok(bad)) => panic!("testException didn't except bad {:?}", bad),
-            Ok(Err(ThriftTestTestExceptionResult { success: None, err1: Some(ref exn) }))
-                if exn == &Xception { error_code: Some(1001), message: Some("Xception".into()) } =>
-                    println!("testException got {:?}", exn),
-            Ok(Err(bad)) => panic!("testException didn't except bad {:?}", bad),
-            Err(err) => panic!("testException got err {:?}", err),
-        }
+    match client.testException("Xception".into()) {
+        Ok(Ok(bad)) => panic!("testException didn't except bad {:?}", bad),
+        Ok(Err(ThriftTestTestExceptionResult { success: None, err1: Some(ref exn) }))
+            if exn == &Xception { error_code: Some(1001), message: Some("Xception".into()) } =>
+                println!("testException got {:?}", exn),
+        Ok(Err(bad)) => panic!("testException didn't except bad {:?}", bad),
+        Err(err) => panic!("testException got err {:?}", err),
     }
 
     // XXX FIXME void result returns None not ()
