@@ -30,6 +30,8 @@ pub enum Error {
     BadVersion,
     /// Sender violated the protocol, for instance, sent an unknown enum value
     ProtocolViolation,
+    /// Sender sent a user exception the receiver wasn't expecting any exceptions
+    UserException,
     /// Received string cannot be converted to a UTF8 string
     InvalidUtf8(str::Utf8Error),
 }
@@ -230,6 +232,12 @@ pub mod helpers {
     use transport::Transport;
     use Result;
 
+    #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+    pub enum AppResult {
+        Success,
+        Exception,
+    }
+
     pub fn read_enum<F, T, P>(iprot: &mut P, transport: &mut T) -> Result<F>
     where F: FromNum, T: Transport, P: Protocol {
         let i = try!(iprot.read_i32(transport));
@@ -243,7 +251,7 @@ pub mod helpers {
                          name: &str, _type: MessageType,
                          args: &W) -> Result<()>
     where W: Encode, T: Transport, P: Protocol {
-        let cseqid: i32 = 0;
+        let cseqid: i32 = 0;    // XXX TODO FIXME
         try!(protocol.write_message_begin(transport, name, _type, cseqid));
         try!(args.encode(protocol, transport));
         try!(protocol.write_message_end(transport));
@@ -252,7 +260,7 @@ pub mod helpers {
     }
 
     pub fn receive<R, T, P>(protocol: &mut P, transport: &mut T,
-                            op: &str, result: &mut R) -> Result<()>
+                            op: &str, result: &mut R) -> Result<AppResult>
     where R: Decode, T: Transport, P: Protocol {
         let (name, ty, id) = try!(protocol.read_message_begin(transport));
         receive_body(protocol, transport, op, result, &name, ty, id)
@@ -260,7 +268,7 @@ pub mod helpers {
 
     pub fn receive_body<R, T, P>(protocol: &mut P, transport: &mut T, op: &str,
                                  result: &mut R, name: &str, ty: MessageType,
-                                 id: i32) -> Result<()>
+                                 id: i32) -> Result<AppResult>
     where R: Decode, T: Transport, P: Protocol {
         match (name, ty, id) {
             (_, MessageType::Exception, _) => {
@@ -271,7 +279,7 @@ pub mod helpers {
                 //protocol.read_message_end();
                 //transport.read_end();
                 //throw x
-                Err(::Error::UserException)
+                Ok(AppResult::Exception)
             }
             // TODO: Make sure the client doesn't receive Call messages and that the server
             // doesn't receive Reply messages
@@ -279,7 +287,7 @@ pub mod helpers {
                 if &fname[..] == op {
                     try!(result.decode(protocol, transport));
                     try!(protocol.read_message_end(transport));
-                    Ok(())
+                    Ok(AppResult::Success)
                  }
                 else {
                     // FIXME: shall we err in this case?

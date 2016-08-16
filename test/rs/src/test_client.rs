@@ -52,7 +52,7 @@ macro_rules! loopback {
         let val = $val;
         print!("{}({:?}) => ", name, val);
         match $client.$method(val.clone()) {
-            Ok(Some(ref v)) if v == &val => println!("{} OK", name),
+            Ok(ref v) if v == &val => println!("{} OK", name),
             Ok(bad) => panic!("{} failed bad {:?}", name, bad),
             Err(err) => panic!("{} failed err {:?}", name, err),
         }
@@ -96,7 +96,7 @@ fn main() {
 
     match client.testString("Test".into()) {
         Err(e) => panic!("testString failed: {:?}", e),
-        Ok(Some(ref s)) if s == "Test" => println!("testString OK {}", s),
+        Ok(ref s) if s == "Test" => println!("testString OK {}", s),
         Ok(bad) => panic!("testString bad result {:?}", bad)
     }
 
@@ -191,7 +191,7 @@ fn main() {
     {
         let expected = 10_f64.powi(307);
         match client.testDouble(expected) {
-            Ok(Some(actual)) if expected - actual <= 10_f64.powi(292) => println!("testDouble OK expected {} actual {}", expected, actual),
+            Ok(actual) if expected - actual <= 10_f64.powi(292) => println!("testDouble OK expected {} actual {}", expected, actual),
             Ok(bad) => panic!("testDouble failed expected {} got {:?}", expected, bad),
             Err(err) => panic!("testDouble failed err {:?}", err),
         }
@@ -200,14 +200,14 @@ fn main() {
     {
         let expected = 10_f64.powi(-292);
         match client.testDouble(expected) {
-            Ok(Some(actual)) if expected - actual <= 10_f64.powi(-307) => println!("testDouble OK expected {} actual {}", expected, actual),
+            Ok(actual) if expected - actual <= 10_f64.powi(-307) => println!("testDouble OK expected {} actual {}", expected, actual),
             Ok(bad) => panic!("testDouble failed expected {} got {:?}", expected, bad),
             Err(err) => panic!("testDouble failed err {:?}", err),
         }
     }
 
     match client.testBinary(vec![]) {
-        Ok(Some(ref v)) if v.len() == 0 => println!("testBinary empty OK"),
+        Ok(ref v) if v.len() == 0 => println!("testBinary empty OK"),
         Ok(bad) => panic!("testBinary failed bad={:?}", bad),
         Err(err) => panic!("testBinary failed err {:?}", err),
     }
@@ -298,11 +298,11 @@ fn main() {
     loopback!(client, testTypedef, 309858235082523_i64);
 
     match client.testMapMap(1) {
-        Ok(Some(v)) => {
+        Ok(v) => {
             // XXX TODO: check proper return
             println!("testMapMap(1) returned {:?}", v);
         },
-        Ok(bad) => panic!("testMapMap returned bad {:?}", bad),
+        //Ok(bad) => panic!("testMapMap returned bad {:?}", bad),
         Err(err) => panic!("testMapMap returned err {:?}", err),
     }
 
@@ -327,17 +327,17 @@ fn main() {
             ]),
         };
         match client.testInsanity(insane.clone()) {
-            Ok(Some(ref v)) => {
+            Ok(ref v) => {
                 // XXX TODO: check proper return
                 println!("testInsanity({:?}) -> {:?}", insane, v)
             },
-            Ok(bad) => panic!("testInsanity({:?}) returned bad {:?}", insane, bad),
+            //Ok(bad) => panic!("testInsanity({:?}) returned bad {:?}", insane, bad),
             Err(err) => panic!("testInsanity failed err {:?}", err),
         }
     }
 
     match client.testMulti(42, 4242, 424242, map! { 1_i16 => "blah", 2_i16 => "thing" }, Numberz::EIGHT, 24) {
-        Ok(Some(ref res)) if res == &Xtruct { string_thing: Some("Hello2".into()), byte_thing: Some(42), i32_thing: Some(4242), i64_thing: Some(424242) } =>
+        Ok(ref res) if res == &Xtruct { string_thing: Some("Hello2".into()), byte_thing: Some(42), i32_thing: Some(4242), i64_thing: Some(424242) } =>
             println!("testMulti OK got res {:?}", res),
         Ok(bad) => panic!("testMulti failed bad {:?}", bad),
         Err(err) => panic!("testMulti failed err {:?}", err),
@@ -345,7 +345,7 @@ fn main() {
 
     match client.testException("Xception".into()) {
         Ok(Ok(bad)) => panic!("testException didn't except bad {:?}", bad),
-        Ok(Err(ThriftTestTestExceptionResult { success: None, err1: Some(ref exn) }))
+        Ok(Err(ThriftTestTestExceptionExn::Err1(ref exn)))
             if exn == &Xception { error_code: Some(1001), message: Some("Xception".into()) } =>
                 println!("testException got {:?}", exn),
         Ok(Err(bad)) => panic!("testException didn't except bad {:?}", bad),

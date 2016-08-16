@@ -157,6 +157,7 @@ impl Decode for Vec<u8> {
         Ok(())
     }
 }
+
 impl<X: Decode> Decode for Vec<X> {
     fn decode<P, T>(&mut self, protocol: &mut P, transport: &mut T) -> Result<()>
     where P: Protocol, T: Transport {

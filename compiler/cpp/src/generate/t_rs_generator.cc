@@ -106,7 +106,7 @@ class t_rs_generator : public t_oop_generator {
   void generate_service_generics(t_service* tservice);
   void generate_service_fields(t_service* tservice);
   void generate_service_methods(char field, t_service* tservice);
-  void generate_service_method_arglist(const vector<t_field*>& fields);
+  void generate_service_method_arglist(const vector<t_field*>& fields, bool enumfield);
   void generate_service_uses(t_service* tservice);
 
   /**
@@ -322,16 +322,42 @@ void t_rs_generator::generate_struct(t_struct* tstruct) {
     f_mod_ << "Hash, ";
   f_mod_ << "],\n";
 
-  indent(f_mod_) << "fields = {\n";
+  indent(f_mod_) << "reqfields = {\n";
   indent_up();
 
-  vector<t_field*>::const_iterator m_iter;
   const vector<t_field*>& members = tstruct->get_members();
-  for (m_iter = members.begin(); m_iter != members.end(); ++m_iter) {
+  for (auto m_iter = members.begin(); m_iter != members.end(); ++m_iter) {
     t_field* tfield = *m_iter;
-    indent(f_mod_) << to_field_name(tfield->get_name())
-      << ": " << render_rs_type(tfield->get_type())
-      << " => " << tfield->get_key() << ",\n";
+    if (tfield->get_req() == t_field::T_REQUIRED) {
+      auto defl = string("Default::default()");
+      if (tfield->get_value() != NULL) {
+        defl = render_const_value(f_mod_, tfield->get_name(), tfield->get_type(), tfield->get_value());
+      }
+
+      indent(f_mod_) << to_field_name(tfield->get_name())
+        << ": " << render_rs_type(tfield->get_type())
+        << " => " << tfield->get_key() << ", default = " << defl << ",\n";
+    }
+  }
+
+  indent_down();
+  indent(f_mod_) << "},\n";
+
+  indent(f_mod_) << "optfields = {\n";
+  indent_up();
+
+  for (auto m_iter = members.begin(); m_iter != members.end(); ++m_iter) {
+    t_field* tfield = *m_iter;
+    if (tfield->get_req() != t_field::T_REQUIRED) {
+      auto defl = string("Default::default()");
+      if (tfield->get_value() != NULL) {
+        defl = render_const_value(f_mod_, tfield->get_name(), tfield->get_type(), tfield->get_value()) + ".into()";
+      }
+
+      indent(f_mod_) << to_field_name(tfield->get_name())
+        << ": " << render_rs_type(tfield->get_type())
+        << " => " << tfield->get_key() << ", default = Some(" << defl << "),\n";
+    }
   }
 
   indent_down();
@@ -401,18 +427,19 @@ void t_rs_generator::generate_service_methods(char field, t_service* tservice) {
         t_function* tfunction = *f_iter;
         const string argname = sname + pascalcase(tfunction->get_name()) + "Args";
         const string resname = sname + pascalcase(tfunction->get_name()) + "Result";
+        const string exnname = sname + pascalcase(tfunction->get_name()) + "Exn";
 
-        indent(f_mod_) << argname << " -> " << resname << " = "
+        indent(f_mod_) << argname << " -> " << resname << " " << exnname << " = "
           << field << "." << tfunction->get_name() << "(\n";
 
         indent_up();
-        generate_service_method_arglist(tfunction->get_arglist()->get_members());
+        generate_service_method_arglist(tfunction->get_arglist()->get_members(), false);
         indent_down();
 
         indent(f_mod_) << ") -> " << render_rs_type(tfunction->get_returntype()) << " => [\n";
 
         indent_up();
-        generate_service_method_arglist(tfunction->get_xceptions()->get_members());
+        generate_service_method_arglist(tfunction->get_xceptions()->get_members(), true);
         indent_down();
 
         indent(f_mod_) << "],\n";
@@ -443,11 +470,13 @@ void t_rs_generator::generate_service_fields(t_service* tservice) {
   }
 }
 
-void t_rs_generator::generate_service_method_arglist(const vector<t_field*>& fields) {
+void t_rs_generator::generate_service_method_arglist(const vector<t_field*>& fields, bool enumfield) {
     vector<t_field*>::const_iterator field_iter;
     for (field_iter = fields.begin(); field_iter != fields.end(); ++field_iter) {
         t_field* tfield = *field_iter;
+        auto field = enumfield ? " " + pascalcase(tfield->get_name()) : "";
         indent(f_mod_) << to_field_name(tfield->get_name())
+            << field
             << ": " << render_rs_type(tfield->get_type())
             << " => " << tfield->get_key() << ",\n";
     }
