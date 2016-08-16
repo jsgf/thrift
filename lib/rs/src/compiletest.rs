@@ -87,3 +87,30 @@ service! {
     fields = [this: S,]
 }
 
+union! {
+  name = TestUnion,
+  derive = [Debug, PartialEq, PartialOrd, ],
+  default = TestUnionDefl::Unknown,
+  fields = {
+    StringField: String => 1,
+    I32Field: i32 => 2,
+    StructList: Vec<Simple> => 4,
+    OtherI32Field: i32 => 5,
+    I32Set: ::std::collections::HashSet<i32> => 7,
+    I32Map: ::std::collections::HashMap<i32, i32> => 8,
+  }
+}
+
+union! {
+  name = TestUnionDefl,
+  derive = [Debug, PartialEq, PartialOrd, ],
+  default = TestUnionDefl::StringField("foo".into()),
+  fields = {
+    StringField: String => 1,
+    I32Field: i32 => 2,
+    StructList: Vec<Simple> => 4,
+    OtherI32Field: i32 => 5,
+    I32Set: ::std::collections::HashSet<i32> => 7,
+    I32Map: ::std::collections::HashMap<i32, i32> => 8,
+  }
+}

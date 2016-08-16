@@ -85,6 +85,7 @@ class t_rs_generator : public t_oop_generator {
   void generate_typedef(t_typedef*  ttypedef);
   void generate_enum(t_enum*     tenum);
   void generate_struct(t_struct*   tstruct);
+  void generate_union(t_struct*   tstruct);
   void generate_service(t_service*  tservice);
   void generate_const(t_const* tconst);
 
@@ -294,8 +295,33 @@ void t_rs_generator::generate_enum(t_enum* tenum) {
   indent(f_mod_) << "}\n\n"; // Close enom invocation.
 }
 
+static string emit_derives(uint derives) {
+  string ret = "";
+
+  if (derives & DERIVE_COPY)
+    ret += "Copy, ";
+  if (derives & DERIVE_DEBUG)
+    ret += "Debug, ";
+  if (derives & DERIVE_EQ)
+    ret += "Eq, ";
+  if (derives & DERIVE_PARTIALEQ)
+    ret += "PartialEq, ";
+  if (derives & DERIVE_ORD)
+    ret += "Ord, ";
+  if (derives & DERIVE_PARTIALORD)
+    ret += "PartialOrd, ";
+  if (derives & DERIVE_HASH)
+    ret += "Hash, ";
+
+  return ret;
+}
+
 // Generate a struct, translating a thrift struct into a rust struct.
 void t_rs_generator::generate_struct(t_struct* tstruct) {
+  if (tstruct->is_union()) {
+    generate_union(tstruct);
+    return;
+  }
   string sname = pascalcase(tstruct->get_name());
 
   indent(f_mod_) << "strukt! {\n";
@@ -305,27 +331,13 @@ void t_rs_generator::generate_struct(t_struct* tstruct) {
 
   unsigned derives = rs_type_derives(tstruct, DERIVE_ALL);
 
-  indent(f_mod_) << "derive = [";
-  if (derives & DERIVE_COPY)
-    f_mod_ << "Copy, ";
-  if (derives & DERIVE_DEBUG)
-    f_mod_ << "Debug, ";
-  if (derives & DERIVE_EQ)
-    f_mod_ << "Eq, ";
-  if (derives & DERIVE_PARTIALEQ)
-    f_mod_ << "PartialEq, ";
-  if (derives & DERIVE_ORD)
-    f_mod_ << "Ord, ";
-  if (derives & DERIVE_PARTIALORD)
-    f_mod_ << "PartialOrd, ";
-  if (derives & DERIVE_HASH)
-    f_mod_ << "Hash, ";
-  f_mod_ << "],\n";
+  indent(f_mod_) << "derive = [" << emit_derives(derives) << "],\n";
+
+  const vector<t_field*>& members = tstruct->get_members();
 
   indent(f_mod_) << "reqfields = {\n";
   indent_up();
 
-  const vector<t_field*>& members = tstruct->get_members();
   for (auto m_iter = members.begin(); m_iter != members.end(); ++m_iter) {
     t_field* tfield = *m_iter;
     if (tfield->get_req() == t_field::T_REQUIRED) {
@@ -365,6 +377,53 @@ void t_rs_generator::generate_struct(t_struct* tstruct) {
 
   indent_down();
   indent(f_mod_) << "}\n\n"; // Close strukt invocation.
+}
+
+// Generate a struct, translating a thrift struct into a rust struct.
+void t_rs_generator::generate_union(t_struct* tstruct) {
+  if (!tstruct->is_union())
+    return;
+  string sname = pascalcase(tstruct->get_name());
+
+  indent(f_mod_) << "union! {\n";
+  indent_up();
+
+  indent(f_mod_) << "name = " << sname << ",\n";
+
+  unsigned derives = rs_type_derives(tstruct, DERIVE_ALL);
+
+  indent(f_mod_) << "derive = [" << emit_derives(derives) << "],\n";
+
+  const vector<t_field*>& members = tstruct->get_members();
+
+  // At most 1 field can have a default
+  string defl = "Unknown";
+  for (auto it = members.begin(); it != members.end(); ++it) {
+    t_field* tfield = *it;
+
+    if (tfield->get_value() != NULL) {
+      string val = render_const_value(f_mod_, tfield->get_name(), tfield->get_type(), tfield->get_value());
+      defl = pascalcase(tfield->get_name()) + "(" + val + ".into())";
+      break;
+    }
+  }
+  indent(f_mod_) << "default = " << sname << "::" << defl << ",\n";
+  indent(f_mod_) << "fields = {\n";
+  indent_up();
+
+  for (auto m_iter = members.begin(); m_iter != members.end(); ++m_iter) {
+    t_field* tfield = *m_iter;
+
+    indent(f_mod_) << pascalcase(tfield->get_name())
+      << ": " << render_rs_type(tfield->get_type())
+      << " => " << tfield->get_key() << ",\n";
+  }
+
+  indent_down();
+  indent(f_mod_) << "}\n";
+
+  indent_down();
+  indent(f_mod_) << "}\n\n"; // Close union invocation.
 }
 
 // Generate a service, translating from a thrift service to a rust trait.

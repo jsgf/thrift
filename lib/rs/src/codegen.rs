@@ -395,6 +395,87 @@ macro_rules! strukt {
 }
 
 #[macro_export]
+macro_rules! union {
+    (name = $name:ident,
+     derive = [ $( $derive:ident ),* $(,)* ],
+     default = $defl:expr,
+     fields = { $($field:ident : $typ:ty => $id:expr, )* }) => {
+        #[derive(Clone$(,$derive)*)]
+        pub enum $name {
+            Unknown,
+            $( $field($typ), )*
+        }
+
+        impl $crate::protocol::ThriftTyped for $name {
+            fn typ() -> $crate::protocol::Type { $crate::protocol::Type::Struct }
+        }
+
+        impl Default for $name {
+            fn default() -> Self { $defl }
+        }
+
+        impl $crate::protocol::Encode for $name {
+            fn encode<P, T>(&self, protocol: &mut P, transport: &mut T) -> $crate::Result<()>
+            where P: $crate::Protocol, T: $crate::Transport {
+                #[allow(unused_imports)]
+                use $crate::protocol::{Encode, ThriftTyped};
+                #[allow(unused_imports)]
+                use $crate::{Protocol};
+
+                try!(protocol.write_struct_begin(transport, stringify!($name)));
+
+                match self {
+                    &$name::Unknown => (),
+                    $(&$name::$field(ref val) => {
+                        try!(protocol.write_field_begin(transport, stringify!($field), <$typ as ThriftTyped>::typ(), $id));
+                        try!(val.encode(protocol, transport));
+                        try!(protocol.write_field_end(transport));
+                    },)*
+                }
+                try!(protocol.write_field_stop(transport));
+                try!(protocol.write_struct_end(transport));
+
+                Ok(())
+            }
+        }
+
+        impl $crate::protocol::Decode for $name {
+            fn decode<P, T>(&mut self, protocol: &mut P, transport: &mut T) -> $crate::Result<()>
+            where P: $crate::Protocol, T: $crate::Transport {
+                #[allow(unused_imports)]
+                use $crate::protocol::{Decode, ThriftTyped};
+                #[allow(unused_imports)]
+                use $crate::Protocol;
+
+                try!(protocol.read_struct_begin(transport));
+
+                *self = $name::Unknown;
+
+                loop {
+                    let (_, typ, id) = try!(protocol.read_field_begin(transport));
+
+                    match (typ, id) {
+                        ($crate::protocol::Type::Stop, _) => break,
+                        $((ty, $id) if ty == <$typ as ThriftTyped>::typ() => {
+                            let mut v: $typ = Default::default();
+                            try!(v.decode(protocol, transport));
+                            *self = $name::$field(v);
+                        },)*
+                        _ => try!(protocol.skip(transport, typ))
+                    };
+
+                    try!(protocol.read_field_end(transport));
+                }
+
+                try!(protocol.read_struct_end(transport));
+
+                Ok(())
+            }
+        }
+    }
+}
+
+#[macro_export]
 macro_rules! enom {
     (name = $name:ident,
      values = [$($vname:ident = $val:expr,)*],
