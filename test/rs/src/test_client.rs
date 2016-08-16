@@ -352,10 +352,21 @@ fn main() {
         Err(err) => panic!("testException got err {:?}", err),
     }
 
-    // XXX FIXME void result returns None not ()
     match client.testException("success".into()) {
         Ok(Ok(())) => println!("testException(success) OK"),
         Ok(bad) => panic!("testException(success) failed bad {:?}", bad),
         Err(err) => panic!("testException(success) failed err {:?}", err),
+    }
+
+    match client.testMultiException("Xception2".into(), "test 2".into()) {
+        Ok(Err(exn)) => println!("testMultiException exn {:?}", exn),
+        Ok(bad) => panic!("testMultiException failed bad {:?}", bad),
+        Err(err) => panic!("testMultiException failed err {:?}", err),
+    }
+
+    match client.testMultiException("success".into(), "test 3".into()) {
+        Ok(Ok(val)) => println!("testMultiException ok {:?}", val),
+        Ok(bad) => panic!("testMultiException failed bad {:?}", bad),
+        Err(err) => panic!("testMultiException failed err {:?}", err),
     }
 }
