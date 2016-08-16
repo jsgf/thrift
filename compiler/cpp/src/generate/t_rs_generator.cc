@@ -361,14 +361,14 @@ void t_rs_generator::generate_struct(t_struct* tstruct) {
   for (auto m_iter = members.begin(); m_iter != members.end(); ++m_iter) {
     t_field* tfield = *m_iter;
     if (tfield->get_req() != t_field::T_REQUIRED) {
-      auto defl = string("Default::default()");
+      auto defl = string("None");
       if (tfield->get_value() != NULL) {
-        defl = render_const_value(f_mod_, tfield->get_name(), tfield->get_type(), tfield->get_value()) + ".into()";
+        defl = "Some(" + render_const_value(f_mod_, tfield->get_name(), tfield->get_type(), tfield->get_value()) + ".into())";
       }
 
       indent(f_mod_) << to_field_name(tfield->get_name())
         << ": " << render_rs_type(tfield->get_type())
-        << " => " << tfield->get_key() << ", default = Some(" << defl << "),\n";
+        << " => " << tfield->get_key() << ", default = " << defl << ",\n";
     }
   }
 
