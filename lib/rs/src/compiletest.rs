@@ -1,5 +1,4 @@
 #![allow(dead_code)]
-use std::collections::{HashSet, HashMap};
 
 strukt! {
     name = Simple,
@@ -15,7 +14,7 @@ strukt! {
     derive = [ Eq, PartialEq, Debug, ],
     reqfields = {},
     optfields = {
-        nested: HashSet<Vec<Vec<Vec<Vec<i32>>>>> => 6, default = Default::default(),
+        nested: ::std::collections::HashSet<Vec<Vec<Vec<Vec<i32>>>>> => 6, default = Default::default(),
     }
 }
 
@@ -26,7 +25,7 @@ strukt! {
     optfields = {
         other: DeeplyNested => 2, default = Default::default(),
         another: Simple => 3, default = Default::default(),
-        map: HashMap<i32, Vec<String>> => 4, default = Default::default(),
+        map: ::std::collections::HashMap<i32, Vec<String>> => 4, default = Default::default(),
     }
 }
 
