@@ -1,40 +1,45 @@
 strukt! {
     name = Simple,
     derive = [],
-    fields = {
-        key: String => 16,
+    reqfields = {},
+    optfields = {
+        key: String => 16, default = None,
     }
 }
 
 strukt! {
     name = Empty,
     derive = [],
-    fields = {}
+    reqfields = {},
+    optfields = {}
 }
 
 strukt! {
     name = Nested,
     derive = [],
-    fields = {
-        nested: Vec<Vec<Vec<Simple>>> => 32,
+    reqfields = {},
+    optfields = {
+        nested: Vec<Vec<Vec<Simple>>> => 32, default = None,
     }
 }
 
 strukt! {
     name = Recursive,
     derive = [],
-    fields = {
-        recurse: Vec<Recursive> => 0,
+    reqfields = {},
+    optfields = {
+        recurse: Vec<Recursive> => 0, default = None,
     }
 }
 
 strukt! {
      name = Many,
      derive = [],
-     fields = {
-         one: i32 => 3,
-         two: String => 4,
-         three: Vec<Simple> => 9,
+     reqfields = {},
+     optfields = {
+         one: i32 => 3, default = None,
+         two: String => 4, default = None,
+         three: Vec<Simple> => 9, default = None,
      }
 }
 
