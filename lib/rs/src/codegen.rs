@@ -18,21 +18,25 @@ macro_rules! service {
      ],
      bounds = [$($boundty:ident: $bound:ident,)*],
      fields = [$($fname:ident: $fty:ty,)*]) => {
+
+        $(method_exception_enum! { name=$sername, fields = { $( $sefname: $sety, )* }})*
+
+        $(
+            strukt! { name = $siname, derive = [ Debug ],
+                reqfields = {},
+                optfields = { $( $saname: $saty => $said, default = Default::default(), )* }
+            }
+            method_result_strukt! { name = $soname, derive = [ Debug ],
+                reqfields = { },
+                optfields = { success: $srty => 0, default = Default::default(),
+                              $( $sename: $sety => $seid, default = Default::default(), )* }
+            }
+         )*
+
+/*
         pub trait $name {
             $(fn $smname(&self, $($saname: $saty),*) -> ::std::result::Result<$srty, $soname>;)*
         }
-
-        $(
-            #[derive(Clone, Debug)]
-            pub enum $sername {
-                Unknown,
-                $($sefname($sety),)*
-            }
-            impl Default for $sername {
-                fn default() -> Self { $sername::Unknown }
-            }
-        )*
-
         service_processor! {
             processor_name = $processor_name,
             service_methods = [ $($siname -> $soname $sername = $smfname.$smname($($saname: $saty => $said,)*) -> $srty => [$($sename $sefname: $sety => $seid,)*],)* ],
@@ -40,13 +44,57 @@ macro_rules! service {
             bounds = [ $($boundty: $bound,)* ],
             fields = [ $($fname: $fty,)* ]
         }
-
+*/
         service_client! {
             client_name = $client_name,
             service_methods = [ $($siname -> $soname $sername = $smfname.$smname($($saname: $saty => $said,)*) -> $srty => [$($sename $sefname: $sety => $seid,)*],)* ],
             parent_methods = [ $($piname -> $poname $pername = $pmfname.$pmname($($paname: $paty => $paid,)*) -> $prty => [$($pename $pefname: $pety => $peid,)*],)* ]
         }
     }
+}
+
+#[macro_export]
+macro_rules! method_exception_enum {
+    (name = oneway,
+     fields = {
+         $( $fname:ident : $fty:ty, )*
+     }) => {
+        // nothing
+    };
+    (name = $name:ident,
+     fields = {
+         $( $fname:ident : $fty:ty, )*
+     }) => {
+         #[derive(Debug,Clone)]
+         pub enum $name {
+             Unknown,
+             $( $fname($fty), )*
+         }
+         impl Default for $name {
+             fn default() -> Self { $name::Unknown }
+         }
+     }
+}
+
+#[macro_export]
+macro_rules! method_result_strukt {
+    (name = oneway,
+     derive = [ $( $derive:ident ),* $(,)* ],
+     reqfields = { $($reqfield:ident : $reqtype:ty => $reqid:expr, default = $reqdefl:expr, )* },
+     optfields = { $($optfield:ident : $opttype:ty => $optid:expr, default = $optdefl:expr, )* }) => {
+         // nothing
+     };
+    (name = $name:ident,
+     derive = [ $( $derive:ident ),* $(,)* ],
+     reqfields = { $($reqfield:ident : $reqtype:ty => $reqid:expr, default = $reqdefl:expr, )* },
+     optfields = { $($optfield:ident : $opttype:ty => $optid:expr, default = $optdefl:expr, )* }) => {
+         strukt! {
+             name = $name,
+             derive = [ $( $derive, )* ],
+             reqfields = { $( $reqfield : $reqtype => $reqid, default = $reqdefl, )* },
+             optfields = { $( $optfield : $opttype => $optid, default = $optdefl, )* }
+         }
+     }
 }
 
 #[macro_export]
@@ -70,18 +118,6 @@ macro_rules! service_processor {
             $($fname: $fty,)*
             _ugh: ()
         }
-
-        $(
-            strukt! { name = $siname, derive = [ Debug ],
-                reqfields = {},
-                optfields = { $( $saname: $saty => $said, default = Default::default(), )* }
-            }
-            strukt! { name = $soname, derive = [ Debug ],
-                reqfields = { },
-                optfields = { success: $srty => 0, default = Default::default(),
-                              $( $sename: $sety => $seid, default = Default::default(), )* }
-            }
-         )*
 
         impl<$($boundty: $bound),*> $name<$($boundty),*> {
             pub fn new($($fname: $fty),*) -> Self {
@@ -116,6 +152,21 @@ macro_rules! service_processor {
 #[macro_export]
 macro_rules! service_processor_method {
     (method =
+        $iname:ident -> oneway = $fname:ident.$mname:ident($($aname:ident: $aty:ty => $aid:expr,)*) -> () => [$($ename:ident $efname:ident : $ety:ty => $eid:expr,)*] ) => {
+        fn $mname<P: $crate::Protocol, T: $crate::Transport>(&self, prot: &mut P, transport: &mut T,
+                                                               ty: $crate::protocol::MessageType, id: i32) -> $crate::Result<()> {
+            static MNAME: &'static str = stringify!($mname);
+
+            let mut args = $iname::default();
+            try!($crate::protocol::helpers::receive_body(prot, transport, MNAME,
+                                                         &mut args, MNAME, ty, id));
+
+            // TODO: Further investigate this unwrap.
+            self.$fname.$mname($(args.$aname.unwrap_or(Default::default())),*);
+            Ok(())
+        }
+    };
+    (method =
         $iname:ident -> $oname:ident = $fname:ident.$mname:ident($($aname:ident: $aty:ty => $aid:expr,)*) -> $rty:ty => [$($ename:ident $efname:ident : $ety:ty => $eid:expr,)*] ) => {
         fn $mname<P: $crate::Protocol, T: $crate::Transport>(&self, prot: &mut P, transport: &mut T,
                                                                ty: $crate::protocol::MessageType, id: i32) -> $crate::Result<()> {
@@ -135,8 +186,7 @@ macro_rules! service_processor_method {
 
             Ok(())
         }
-    }
-}
+    }}
 
 #[macro_export]
 macro_rules! service_client {
@@ -233,6 +283,21 @@ macro_rules! service_client_result {
 
 #[macro_export]
 macro_rules! service_client_method {
+    // oneway
+    (method = $iname:ident -> oneway oneway =
+                $fname:ident.$mname:ident($($aname:ident: $aty:ty => $aid:expr,)*) -> $rty:ty => [ ]
+    ) => {
+        pub fn $mname(&mut self, $($aname: $aty,)*) -> $crate::Result<$rty> {
+            use $crate::protocol::{Decode, MessageType, Error, helpers};
+            static MNAME: &'static str = stringify!($mname);
+
+            let args = $iname { $($aname: Some($aname),)* ..::std::default::Default::default() };
+            try!(helpers::send(&mut self.protocol, &mut self.transport,
+                                                 MNAME, MessageType::Call, &args));
+            Ok(())
+        }
+    };
+
     // no exceptions - just return plain value
     (method = $iname:ident -> $oname:ident $ename:ident =
                 $fname:ident.$mname:ident($($aname:ident: $aty:ty => $aid:expr,)*) -> $rty:ty => [ ]

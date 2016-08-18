@@ -485,8 +485,13 @@ void t_rs_generator::generate_service_methods(char field, t_service* tservice) {
     for (f_iter = functions.begin(); f_iter != functions.end(); ++f_iter) {
         t_function* tfunction = *f_iter;
         const string argname = sname + pascalcase(tfunction->get_name()) + "Args";
-        const string resname = sname + pascalcase(tfunction->get_name()) + "Result";
-        const string exnname = sname + pascalcase(tfunction->get_name()) + "Exn";
+        string resname = sname + pascalcase(tfunction->get_name()) + "Result";
+        string exnname = sname + pascalcase(tfunction->get_name()) + "Exn";
+
+        if (tfunction->is_oneway()) {
+          resname = "oneway";
+          exnname = "oneway";
+        }
 
         indent(f_mod_) << argname << " -> " << resname << " " << exnname << " = "
           << field << "." << tfunction->get_name() << "(\n";

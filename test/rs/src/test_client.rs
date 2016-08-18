@@ -369,4 +369,11 @@ fn main() {
         Ok(bad) => panic!("testMultiException failed bad {:?}", bad),
         Err(err) => panic!("testMultiException failed err {:?}", err),
     }
+
+    match client.testOneway(1) {
+        Ok(ok) => println!("testOneway ok {:?}", ok),
+        Err(err) => panic!("testOneway failed {:?}", err),
+    }
+    // check there's no stray result by doing a loopback
+    loopback!(client, testByte, 42);
 }
