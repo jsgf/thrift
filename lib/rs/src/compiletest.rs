@@ -88,8 +88,8 @@ service! {
 
 union! {
   name = TestUnion,
-  derive = [Debug, PartialEq, PartialOrd, ],
-  default = TestUnionDefl::Unknown,
+  derive = [Debug, PartialEq, ],
+  default = TestUnion::Unknown,
   fields = {
     StringField: String => 1,
     I32Field: i32 => 2,
@@ -102,7 +102,7 @@ union! {
 
 union! {
   name = TestUnionDefl,
-  derive = [Debug, PartialEq, PartialOrd, ],
+  derive = [Debug, PartialEq, ],
   default = TestUnionDefl::StringField("foo".into()),
   fields = {
     StringField: String => 1,
