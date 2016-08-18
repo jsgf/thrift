@@ -74,3 +74,15 @@ impl fmt::Display for Error {
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
+
+#[derive(Debug, Clone)]
+pub struct Client<P,T> {
+    pub protocol: P,
+    pub transport: T,
+}
+
+impl<P, T> Client<P, T> where P: Protocol, T: Transport {
+    pub fn new(proto: P, trans: T) -> Self {
+        Client { protocol: proto, transport: trans }
+    }
+}

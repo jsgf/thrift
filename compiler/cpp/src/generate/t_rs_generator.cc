@@ -455,15 +455,13 @@ void t_rs_generator::generate_service(t_service* tservice) {
     indent(f_mod_) << "],\n";
 
     // The methods from parent services that need to go in the processor.
-    indent(f_mod_) << "parent_methods = [\n";
+    indent(f_mod_) << "parents = [\n";
     indent_up();
 
-    char field;
-    t_service* parent;
-    for (parent = tservice->get_extends(), field = 'b';
-         parent && field <= 'z';
-         parent = parent->get_extends(), field++) {
-        generate_service_methods(field, parent);
+    for (auto parent = tservice->get_extends();
+         parent;
+         parent = parent->get_extends()) {
+      indent(f_mod_) << underscore(parent->get_name()) << ": " << pascalcase(parent->get_name()) << ",\n";
     }
 
     indent_down();
@@ -502,7 +500,13 @@ void t_rs_generator::generate_service_methods(char field, t_service* tservice) {
         generate_service_method_arglist(tfunction->get_arglist()->get_members(), false);
         indent_down();
 
-        indent(f_mod_) << ") -> " << render_rs_type(tfunction->get_returntype()) << " => [\n";
+        indent(f_mod_) << ") -> " << render_rs_type(tfunction->get_returntype()) << ", ";
+
+        if (tfunction->get_xceptions()->get_members().size() == 0)
+          f_mod_ << render_rs_type(tfunction->get_returntype());
+        else
+          f_mod_ << "::std::result::Result<" << render_rs_type(tfunction->get_returntype()) << ", " << exnname << "> ";
+        f_mod_  << " => [\n";
 
         indent_up();
         generate_service_method_arglist(tfunction->get_xceptions()->get_members(), true);

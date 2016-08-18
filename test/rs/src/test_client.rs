@@ -89,7 +89,7 @@ fn main() {
 
     let stream = BufStream::new(TcpStream::connect((host.as_ref(), port)).unwrap());
 
-    let mut client = ThriftTestClient::new(BinaryProtocol, stream);
+    let mut client = thrift::Client::new(BinaryProtocol, stream);
 
     match client.testVoid() {
         Err(e) => panic!("testVoid failed: {:?}", e),

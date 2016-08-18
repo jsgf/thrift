@@ -5,16 +5,11 @@ macro_rules! service {
      service_methods = [
          $(
              // ThriftArgStruct -> ThriftResultStruct ThriftExnStruct= fieldname.methodname ( (arg: ty => idx)* ) -> rustreturn => [ (exn: ty => idx )* ]
-             $siname:ident -> $soname:ident $sername:ident = $smfname:ident . $smname:ident( $($saname:ident: $saty:ty => $said:expr,)* ) -> $srty:ty =>
+             $siname:ident -> $soname:ident $sername:ident = $smfname:ident . $smname:ident( $($saname:ident: $saty:ty => $said:expr,)* ) -> $srty:ty, $sresty:ty =>
                     [ $($sename:ident $sefname:ident : $sety:ty => $seid:expr,)* ],
           )*
      ],
-     parent_methods = [
-         $(
-             $piname:ident -> $poname:ident $pername:ident = $pmfname:ident . $pmname:ident( $($paname:ident: $paty:ty => $paid:expr,)* ) -> $prty:ty =>
-                    [ $($pename:ident $pefname:ident : $pety:ty => $peid:expr,)* ],
-          )*
-     ],
+     parents = [ $($pmod:ident: $pclient:ident,)* ],
      bounds = [$($boundty:ident: $bound:ident,)*],
      fields = [$($fname:ident: $fty:ty,)*]) => {
          pub mod $modname {
@@ -37,15 +32,15 @@ macro_rules! service {
                 )*
                 service_client! {
                     name = $name,
-                    service_methods = [ $($siname -> $soname $sername = $smfname.$smname($($saname: $saty => $said,)*) -> $srty => [$($sename $sefname: $sety => $seid,)*],)* ],
-                    parent_methods = [ $($piname -> $poname $pername = $pmfname.$pmname($($paname: $paty => $paid,)*) -> $prty => [$($pename $pefname: $pety => $peid,)*],)* ]
+                    service_methods = [ $($siname -> $soname $sername = $smname($($saname: $saty => $said,)*) -> $srty, $sresty => [$($sename $sefname: $sety => $seid,)*],)* ],
+                    parents = [ $($pmod : $pclient,)* ]
                 }
             }
 
             pub mod processor {
                 pub use super::super::common::*;
 
-/* XXX FIXME deal with oneway in trait return type
+/* XXX parent things
                 service_processor! {
                     name = $name,
                     service_methods = [ $($siname -> $soname $sername = $smfname.$smname($($saname: $saty => $said,)*) -> $srty => [$($sename $sefname: $sety => $seid,)*],)* ],
@@ -219,39 +214,21 @@ macro_rules! service_client {
     (name = $name:ident,
      service_methods = [
          $(
-             $siname:ident -> $soname:ident $sername:ident = $smfname:ident.$smname:ident($($saname:ident: $saty:ty => $said:expr,)*) -> $srty:ty =>
+             $siname:ident -> $soname:ident $sername:ident = $smname:ident($($saname:ident: $saty:ty => $said:expr,)*) -> $srty:ty, $sresty:ty =>
                     [$($sename:ident $sefname:ident : $sety:ty => $seid:expr,)*],
           )*
      ],
-     parent_methods = [
-         $(
-             $piname:ident -> $poname:ident $pername:ident = $pmfname:ident.$pmname:ident($($paname:ident: $paty:ty => $paid:expr,)*) -> $prty:ty =>
-                    [$($pename:ident $pefname:ident : $pety:ty => $peid:expr,)*],
-          )*
-     ]) => {
-        pub struct $name<P: $crate::Protocol, T: $crate::Transport> {
-            pub protocol: P,
-            pub transport: T
+     parents = [ $($pmod:ident: $pclient:ident,)* ]) => {
+        $(use super::super::$pmod ::client:: $pclient;)*
+        pub trait $name: $($pclient),* {
+            $(fn $smname(&mut self, $($saname: $saty),*) -> $crate::Result<$sresty>;)*
         }
 
-        impl<P: $crate::Protocol, T: $crate::Transport> $name<P, T> {
-            pub fn new(protocol: P, transport: T) -> Self {
-                $name {
-                    protocol: protocol,
-                    transport: transport
-                }
-            }
-
+        impl<P: $crate::Protocol, T: $crate::Transport> $name for $crate::Client<P, T> {
             $(
                 service_client_method! {
                     // ThiftArgName -> ThriftReturnName = fieldname.method( (arg: type => idx)* ) -> return => [ (exn: ty => idx) ],
-                    method = $siname -> $soname $sername = $smfname.$smname ( $( $saname: $saty => $said,)* ) -> $srty => [ $($sename $sefname : $sety => $seid,)* ]
-                }
-            )*
-            $(
-                service_client_method! {
-                    method = $piname -> $poname $pername = $pmfname.$pmname ( $($paname: $paty => $paid,)* ) -> $prty => [ $($pename $pefname : $pety => $peid,)* ]
-
+                    method = $siname -> $soname $sername = $smname ( $( $saname: $saty => $said,)* ) -> $srty, $sresty => [ $($sename $sefname : $sety => $seid,)* ]
                 }
             )*
         }
@@ -311,24 +288,24 @@ macro_rules! service_client_result {
 macro_rules! service_client_method {
     // oneway
     (method = $iname:ident -> oneway oneway =
-                $fname:ident.$mname:ident($($aname:ident: $aty:ty => $aid:expr,)*) -> $rty:ty => [ ]
+                $mname:ident($($aname:ident: $aty:ty => $aid:expr,)*) -> $rty:ty, $resty:ty => [ ]
     ) => {
-        pub fn $mname(&mut self, $($aname: $aty,)*) -> $crate::Result<$rty> {
+        fn $mname(&mut self, $($aname: $aty,)*) -> $crate::Result<$resty> {
             use $crate::protocol::{Decode, MessageType, Error, helpers};
             static MNAME: &'static str = stringify!($mname);
 
             let args = $iname { $($aname: Some($aname),)* ..::std::default::Default::default() };
             try!(helpers::send(&mut self.protocol, &mut self.transport,
-                                                 MNAME, MessageType::Call, &args));
+                                        MNAME, MessageType::Call, &args));
             Ok(())
         }
     };
 
     // no exceptions - just return plain value
     (method = $iname:ident -> $oname:ident $ename:ident =
-                $fname:ident.$mname:ident($($aname:ident: $aty:ty => $aid:expr,)*) -> $rty:ty => [ ]
+                $mname:ident($($aname:ident: $aty:ty => $aid:expr,)*) -> $rty:ty, $resty:ty => [ ]
     ) => {
-        pub fn $mname(&mut self, $($aname: $aty,)*) -> $crate::Result<$rty> {
+        fn $mname(&mut self, $($aname: $aty,)*) -> $crate::Result<$resty> {
             use $crate::protocol::{Decode, MessageType, Error, helpers};
             static MNAME: &'static str = stringify!($mname);
 
@@ -364,10 +341,10 @@ macro_rules! service_client_method {
 
     // exceptions - return Result<T, Exn>
     (method = $iname:ident -> $oname:ident $edname:ident =
-                $fname:ident.$mname:ident($($aname:ident: $aty:ty => $aid:expr,)*) -> $rty:ty =>
+                $mname:ident($($aname:ident: $aty:ty => $aid:expr,)*) -> $rty:ty, $resty:ty =>
                     [ $($ename:ident $efname:ident : $ety:ty => $eid:expr,)+ ]
     ) => {
-        pub fn $mname(&mut self, $($aname: $aty,)*) -> $crate::Result<::std::result::Result<$rty,$edname>> {
+        fn $mname(&mut self, $($aname: $aty,)*) -> $crate::Result<$resty> {
             use $crate::protocol::{Decode, MessageType, Error, helpers};
             static MNAME: &'static str = stringify!($mname);
 
