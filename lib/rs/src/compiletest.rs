@@ -36,9 +36,8 @@ enom! {
 }
 
 service! {
+    name = shared_service,
     trait_name = SharedService,
-    processor_name = SharedServiceProcessor,
-    client_name = SharedServiceClient,
     service_methods = [
         SharedServiceGetStructArgs -> SharedServiceGetStructResult SharedServiceGetStructExn = shared.get_struct(key: i32 => 1,) -> DeeplyNested => [],
     ],
@@ -48,9 +47,8 @@ service! {
 }
 
 service! {
+     name = child_service,
      trait_name = ChildService,
-     processor_name = ChildServiceProcessor,
-     client_name = ChildServiceClient,
      service_methods = [
          ChildServiceOperationArgs -> ChildServiceOperationResult ChildServiceOperationExn = child.operation(
              one: String => 2,
@@ -75,9 +73,8 @@ strukt! {
 }
 
 service! {
+    name = service_with_exception,
     trait_name = ServiceWithException,
-    processor_name = ServiceWithExceptionProcessor,
-    client_name = ServiceWithExceptionClient,
     service_methods = [
         ServiceWithExceptionOperationArgs -> ServiceWithExceptionOperationResult ServiceWithExceptionOperationExn = this.operation() -> i32 => [bad Bad: Exception => 1,],
     ],

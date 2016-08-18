@@ -181,12 +181,8 @@ void t_rs_generator::generate_program() {
   // Initialize the generator
   init_generator();
 
-  // Generate service uses
-  vector<t_service*> services = program_->get_services();
-  vector<t_service*>::iterator sv_iter;
-  for (sv_iter = services.begin(); sv_iter != services.end(); ++sv_iter) {
-    generate_service_uses(*sv_iter);
-  }
+  indent(f_mod_) << "pub mod common {\n";
+  indent_up();
 
   // Generate enums
   vector<t_enum*> enums = program_->get_enums();
@@ -214,6 +210,16 @@ void t_rs_generator::generate_program() {
   vector<t_const*>::iterator c_iter;
   for (c_iter = consts.begin(); c_iter != consts.end(); ++c_iter) {
     generate_const(*c_iter);
+  }
+
+  indent_down();
+  indent(f_mod_) << "}\n";
+
+  // Generate service uses
+  vector<t_service*> services = program_->get_services();
+  vector<t_service*>::iterator sv_iter;
+  for (sv_iter = services.begin(); sv_iter != services.end(); ++sv_iter) {
+    generate_service_uses(*sv_iter);
   }
 
   // Generate services
@@ -428,18 +434,16 @@ void t_rs_generator::generate_union(t_struct* tstruct) {
 
 // Generate a service, translating from a thrift service to a rust trait.
 void t_rs_generator::generate_service(t_service* tservice) {
+    const string modname = underscore(tservice->get_name());
     const string sname = pascalcase(tservice->get_name());
     const string trait_name = sname;
-    const string processor_name = sname + "Processor";
-    const string client_name = sname + "Client";
 
     indent(f_mod_) << "service! {\n";
     indent_up();
 
     // Trait, processor and client type names.
+    indent(f_mod_) << "name = " << modname << ",\n";
     indent(f_mod_) << "trait_name = " << trait_name << ",\n";
-    indent(f_mod_) << "processor_name = " << processor_name << ",\n";
-    indent(f_mod_) << "client_name = " << client_name << ",\n";
 
     // The methods originating in this service to go in the service trait.
     indent(f_mod_) << "service_methods = [\n";
@@ -478,15 +482,13 @@ void t_rs_generator::generate_service(t_service* tservice) {
 }
 
 void t_rs_generator::generate_service_methods(char field, t_service* tservice) {
-    const string sname = pascalcase(tservice->get_name());
-
     vector<t_function*> functions = tservice->get_functions();
     vector<t_function*>::const_iterator f_iter;
     for (f_iter = functions.begin(); f_iter != functions.end(); ++f_iter) {
         t_function* tfunction = *f_iter;
-        const string argname = sname + pascalcase(tfunction->get_name()) + "Args";
-        string resname = sname + pascalcase(tfunction->get_name()) + "Result";
-        string exnname = sname + pascalcase(tfunction->get_name()) + "Exn";
+        const string argname = pascalcase(tfunction->get_name()) + "Args";
+        string resname = pascalcase(tfunction->get_name()) + "Result";
+        string exnname = pascalcase(tfunction->get_name()) + "Exn";
 
         if (tfunction->is_oneway()) {
           resname = "oneway";

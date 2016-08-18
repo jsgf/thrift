@@ -1,8 +1,7 @@
 #[macro_export]
 macro_rules! service {
-    (trait_name = $name:ident,
-     processor_name = $processor_name:ident,
-     client_name = $client_name:ident,
+    (name = $modname:ident,
+     trait_name = $name:ident,
      service_methods = [
          $(
              // ThriftArgStruct -> ThriftResultStruct ThriftExnStruct= fieldname.methodname ( (arg: ty => idx)* ) -> rustreturn => [ (exn: ty => idx )* ]
@@ -18,37 +17,44 @@ macro_rules! service {
      ],
      bounds = [$($boundty:ident: $bound:ident,)*],
      fields = [$($fname:ident: $fty:ty,)*]) => {
-
-        $(method_exception_enum! { name=$sername, fields = { $( $sefname: $sety, )* }})*
-
-        $(
-            strukt! { name = $siname, derive = [ Debug ],
-                reqfields = {},
-                optfields = { $( $saname: $saty => $said, default = Default::default(), )* }
+         pub mod $modname {
+            pub mod client {
+                pub use super::super::common::*;
+                $(
+                    // args
+                    strukt! { name = $siname, derive = [ Debug ],
+                        reqfields = {},
+                        optfields = { $( $saname: $saty => $said, default = Default::default(), )* }
+                    }
+                    // results
+                    method_result_strukt! { name = $soname, derive = [ Debug ],
+                        reqfields = { },
+                        optfields = { success: $srty => 0, default = Default::default(),
+                                    $( $sename: $sety => $seid, default = Default::default(), )* }
+                    }
+                    // exceptions
+                    method_exception_enum! { name=$sername, fields = { $( $sefname: $sety, )* }}
+                )*
+                service_client! {
+                    name = $name,
+                    service_methods = [ $($siname -> $soname $sername = $smfname.$smname($($saname: $saty => $said,)*) -> $srty => [$($sename $sefname: $sety => $seid,)*],)* ],
+                    parent_methods = [ $($piname -> $poname $pername = $pmfname.$pmname($($paname: $paty => $paid,)*) -> $prty => [$($pename $pefname: $pety => $peid,)*],)* ]
+                }
             }
-            method_result_strukt! { name = $soname, derive = [ Debug ],
-                reqfields = { },
-                optfields = { success: $srty => 0, default = Default::default(),
-                              $( $sename: $sety => $seid, default = Default::default(), )* }
-            }
-         )*
 
-/*
-        pub trait $name {
-            $(fn $smname(&self, $($saname: $saty),*) -> ::std::result::Result<$srty, $soname>;)*
-        }
-        service_processor! {
-            processor_name = $processor_name,
-            service_methods = [ $($siname -> $soname $sername = $smfname.$smname($($saname: $saty => $said,)*) -> $srty => [$($sename $sefname: $sety => $seid,)*],)* ],
-            parent_methods = [ $($piname -> $poname $pername = $pmfname.$pmname($($paname: $paty => $paid,)*) -> $prty => [$($pename $pefname: $pety => $peid,)*],)* ],
-            bounds = [ $($boundty: $bound,)* ],
-            fields = [ $($fname: $fty,)* ]
-        }
-*/
-        service_client! {
-            client_name = $client_name,
-            service_methods = [ $($siname -> $soname $sername = $smfname.$smname($($saname: $saty => $said,)*) -> $srty => [$($sename $sefname: $sety => $seid,)*],)* ],
-            parent_methods = [ $($piname -> $poname $pername = $pmfname.$pmname($($paname: $paty => $paid,)*) -> $prty => [$($pename $pefname: $pety => $peid,)*],)* ]
+            pub mod processor {
+                pub use super::super::common::*;
+
+/* XXX FIXME deal with oneway in trait return type
+                service_processor! {
+                    name = $name,
+                    service_methods = [ $($siname -> $soname $sername = $smfname.$smname($($saname: $saty => $said,)*) -> $srty => [$($sename $sefname: $sety => $seid,)*],)* ],
+                    parent_methods = [ $($piname -> $poname $pername = $pmfname.$pmname($($paname: $paty => $paid,)*) -> $prty => [$($pename $pefname: $pety => $peid,)*],)* ],
+                    bounds = [ $($boundty: $bound,)* ],
+                    fields = [ $($fname: $fty,)* ]
+                }
+  */
+            }
         }
     }
 }
@@ -99,7 +105,7 @@ macro_rules! method_result_strukt {
 
 #[macro_export]
 macro_rules! service_processor {
-    (processor_name = $name:ident,
+    (name = $name:ident,
      service_methods = [
          $(
              $siname:ident -> $soname:ident $sername:ident = $smfname:ident.$smname:ident($($saname:ident: $saty:ty => $said:expr,)*) -> $srty:ty =>
@@ -114,14 +120,34 @@ macro_rules! service_processor {
      ],
      bounds = [$($boundty:ident: $bound:ident,)*],
      fields = [$($fname:ident: $fty:ty,)*]) => {
-        pub struct $name<$($boundty: $bound),*> {
+        pub trait $name {
+            $(fn $smname(&self, $($saname: $saty),*) -> ::std::result::Result<$srty, $soname>;)*
+        }
+
+        $(
+            // args
+            strukt! { name = $siname, derive = [ Debug ],
+                reqfields = {},
+                optfields = { $( $saname: $saty => $said, default = Default::default(), )* }
+            }
+            // results
+            method_result_strukt! { name = $soname, derive = [ Debug ],
+                reqfields = { },
+                optfields = { success: $srty => 0, default = Default::default(),
+                            $( $sename: $sety => $seid, default = Default::default(), )* }
+            }
+            // exceptions
+            method_exception_enum! { name=$sername, fields = { $( $sefname: $sety, )* }}
+        )*
+
+        pub struct ServiceProcessor<$($boundty: $bound),*> {
             $($fname: $fty,)*
             _ugh: ()
         }
 
-        impl<$($boundty: $bound),*> $name<$($boundty),*> {
+        impl<$($boundty: $bound),*> ServiceProcessor<$($boundty),*> {
             pub fn new($($fname: $fty),*) -> Self {
-                $name { $($fname: $fname,)* _ugh: () }
+                ServiceProcessor { $($fname: $fname,)* _ugh: () }
             }
 
             pub fn dispatch<P: $crate::Protocol, T: $crate::Transport>(&self, prot: &mut P, transport: &mut T,
@@ -137,7 +163,7 @@ macro_rules! service_processor {
             $(service_processor_method! { method = $piname -> $poname = $pmfname.$pmname($($paname: $paty => $paid,)*) -> $prty => [$($pename $pefname : $pety => $peid,)*] })*
         }
 
-        impl<P: $crate::Protocol, T: $crate::Transport, $($boundty: $bound),*> $crate::Processor<P, T> for $name<$($boundty),*> {
+        impl<P: $crate::Protocol, T: $crate::Transport, $($boundty: $bound),*> $crate::Processor<P, T> for ServiceProcessor<$($boundty),*> {
             fn process(&self, protocol: &mut P, transport: &mut T) -> $crate::Result<()> {
                 #[allow(unused_imports)]
                 use $crate::Protocol;
@@ -190,7 +216,7 @@ macro_rules! service_processor_method {
 
 #[macro_export]
 macro_rules! service_client {
-    (client_name = $client_name:ident,
+    (name = $name:ident,
      service_methods = [
          $(
              $siname:ident -> $soname:ident $sername:ident = $smfname:ident.$smname:ident($($saname:ident: $saty:ty => $said:expr,)*) -> $srty:ty =>
@@ -203,14 +229,14 @@ macro_rules! service_client {
                     [$($pename:ident $pefname:ident : $pety:ty => $peid:expr,)*],
           )*
      ]) => {
-        pub struct $client_name<P: $crate::Protocol, T: $crate::Transport> {
+        pub struct $name<P: $crate::Protocol, T: $crate::Transport> {
             pub protocol: P,
             pub transport: T
         }
 
-        impl<P: $crate::Protocol, T: $crate::Transport> $client_name<P, T> {
+        impl<P: $crate::Protocol, T: $crate::Transport> $name<P, T> {
             pub fn new(protocol: P, transport: T) -> Self {
-                $client_name {
+                $name {
                     protocol: protocol,
                     transport: transport
                 }

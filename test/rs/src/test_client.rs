@@ -33,7 +33,9 @@ use thrift::protocol::binary_protocol::BinaryProtocol;
 mod thrift_test;
 mod small_test;
 
-use thrift_test::*;
+use thrift_test::thrift_test::client::*;
+use thrift_test::thrift_test::client::ThriftTest as ThriftTestClient;
+use thrift_test::common::Numberz::*;
 
 macro_rules! map {
     () => { BTreeMap::new() };
@@ -286,7 +288,6 @@ fn main() {
     loopback!(client, testList, vec![-3,-2,1,4,5]);
 
     {
-        use thrift_test::Numberz::*;
         loopback!(client, testEnum, ONE);
         loopback!(client, testEnum, TWO);
         loopback!(client, testEnum, THREE);
@@ -307,8 +308,6 @@ fn main() {
     }
 
     {
-        use thrift_test::Numberz::*;
-
         let insane = Insanity {
             user_map: Some(map! { FIVE => 5, EIGHT => 8 }),
             xtructs: Some(vec! [
@@ -354,7 +353,7 @@ fn main() {
         }
     }
 
-    match client.testMulti(42, 4242, 424242, map! { 1_i16 => "blah", 2_i16 => "thing" }, Numberz::EIGHT, 24) {
+    match client.testMulti(42, 4242, 424242, map! { 1_i16 => "blah", 2_i16 => "thing" }, EIGHT, 24) {
         Ok(ref res) if res == &Xtruct { string_thing: Some("Hello2".into()), byte_thing: Some(42), i32_thing: Some(4242), i64_thing: Some(424242) } =>
             println!("testMulti OK got res {:?}", res),
         Ok(bad) => panic!("testMulti failed bad {:?}", bad),
@@ -363,7 +362,7 @@ fn main() {
 
     match client.testException("Xception".into()) {
         Ok(Ok(bad)) => panic!("testException didn't except bad {:?}", bad),
-        Ok(Err(ThriftTestTestExceptionExn::Err1(ref exn)))
+        Ok(Err(TestExceptionExn::Err1(ref exn)))
             if exn == &Xception { error_code: Some(1001), message: Some("Xception".into()) } =>
                 println!("testException got {:?}", exn),
         Ok(Err(bad)) => panic!("testException didn't except bad {:?}", bad),
