@@ -328,10 +328,28 @@ fn main() {
         };
         match client.testInsanity(insane.clone()) {
             Ok(ref v) => {
-                // XXX TODO: check proper return
-                println!("testInsanity({:?}) -> {:?}", insane, v)
+                let want = map! {
+                    1 => map! {
+                        TWO => Insanity {
+                            user_map: Some(map! {FIVE => 5, EIGHT => 8}),
+                            xtructs: Some(vec! [Xtruct { string_thing: Some("Goodbye4".into()), byte_thing: Some(4), i32_thing: Some(4), i64_thing: Some(4) },
+                                                Xtruct { string_thing: Some("Hello2".into()), byte_thing: Some(2), i32_thing: Some(2), i64_thing: Some(4) }])
+                        },
+                        THREE => Insanity {
+                            user_map: Some(map! {FIVE => 5, EIGHT => 8}),
+                            xtructs: Some(vec! [Xtruct { string_thing: Some("Goodbye4".into()), byte_thing: Some(4), i32_thing: Some(4), i64_thing: Some(4) },
+                                                Xtruct { string_thing: Some("Hello2".into()), byte_thing: Some(2), i32_thing: Some(2), i64_thing: Some(4) }])
+                        }
+                    },
+                    // XXX need to compare missing with default? - cpp returns Some(map! {}), java returns None
+                    2 => map! { SIX => Insanity { user_map: Some(map! {}), xtructs: Some(vec! []) }}
+                };
+                if v == &want {
+                    println!("testInsanity({:?}) -> {:?}", insane, v)
+                } else {
+                    println!("(WARNING) testInsanity({:?}) returned bad {:?} wanted {:?}", insane, v, want)
+                }
             },
-            //Ok(bad) => panic!("testInsanity({:?}) returned bad {:?}", insane, bad),
             Err(err) => panic!("testInsanity failed err {:?}", err),
         }
     }
