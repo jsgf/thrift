@@ -34,7 +34,6 @@ mod thrift_test;
 mod small_test;
 
 use thrift_test::thrift_test::client::*;
-use thrift_test::thrift_test::client::ThriftTest as ThriftTestClient;
 use thrift_test::common::Numberz::*;
 
 macro_rules! map {

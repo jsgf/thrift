@@ -77,12 +77,45 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug, Clone)]
 pub struct Client<P,T> {
-    pub protocol: P,
-    pub transport: T,
+    protocol: P,
+    transport: T,
+    seq: i32,
+}
+
+macro_rules! proto_pass {
+    ($name:ident -> $ret:ty) => {
+        pub fn $name(&mut self) -> Result<$ret> {
+            self.protocol.$name(&mut self.transport)
+        }
+    }
 }
 
 impl<P, T> Client<P, T> where P: Protocol, T: Transport {
     pub fn new(proto: P, trans: T) -> Self {
-        Client { protocol: proto, transport: trans }
+        Client { protocol: proto, transport: trans, seq: 0 }
+    }
+
+    pub fn sendcall<W: protocol::Encode>(&mut self, name: &str, args: &W) -> Result<()> {
+        self.seq += 1;
+        try!(self.protocol.write_message_begin(&mut self.transport, name, protocol::MessageType::Call, self.seq));
+        try!(args.encode(&mut self.protocol, &mut self.transport));
+        try!(self.protocol.write_message_end(&mut self.transport));
+        try!(self.transport.flush());
+        Ok(())
+    }
+
+    proto_pass!(read_message_begin -> (String, protocol::MessageType, i32));
+    proto_pass!(read_message_end -> ());
+    proto_pass!(read_struct_begin -> String);
+    proto_pass!(read_struct_end -> ());
+    proto_pass!(read_field_begin -> (String, protocol::Type, i16));
+    proto_pass!(read_field_end -> ());
+
+    pub fn skip(&mut self, ty: protocol::Type) -> Result<()> {
+        self.protocol.skip(&mut self.transport, ty)
+    }
+
+    pub fn decode<D: protocol::Decode>(&mut self) -> Result<D> {
+        D::decode(&mut self.protocol, &mut self.transport)
     }
 }

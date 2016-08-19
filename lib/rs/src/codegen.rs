@@ -243,39 +243,37 @@ macro_rules! service_client {
 // XXX make a function?
 #[macro_export]
 macro_rules! service_client_result {
-    (protocol = $protocol:expr,
-     transport = $transport:expr,
+    (client = $client:expr,
      ret = $rty:ty,
      exc = $exty:ident [ $($ename:ident $efname:ident : $ety:ty => $eid:expr,)* ]) => {{
-         let protocol = $protocol;
-         let transport = $transport;
+         let client = $client;
          let mut ret: Result<$rty, $exty> = Ok(Default::default());
 
-         try!(protocol.read_struct_begin(transport));
+         try!(client.read_struct_begin());
 
          loop {
              use $crate::protocol::ThriftTyped;
 
-             let (_, typ, id) = try!(protocol.read_field_begin(transport));
+             let (_, typ, id) = try!(client.read_field_begin());
 
              match (typ, id) {
                  ($crate::protocol::Type::Stop, _) => break,
                  (ty, 0) if ty == <$rty as ThriftTyped>::typ() => {
-                     ret = Ok(try!(Decode::decode(protocol, transport)))
+                     ret = Ok(try!(client.decode()))
                  },
                  $((ty, $eid) if ty == <$ety as ThriftTyped>::typ() => {
-                     let e = try!(Decode::decode(protocol, transport));
+                     let e = try!(client.decode());
                      ret = Err($exty::$efname(e));
                  },)*
                  _ => {
                      ret = Err(Default::default());
-                     try!(protocol.skip(transport, typ))
+                     try!(client.skip(typ))
                  },
              }
-             try!(protocol.read_field_end(transport));
+             try!(client.read_field_end());
          };
 
-         try!(protocol.read_struct_end(transport));
+         try!(client.read_struct_end());
 
          ret
      }}
@@ -288,12 +286,10 @@ macro_rules! service_client_method {
                 $mname:ident($($aname:ident: $aty:ty => $aid:expr,)*) -> $rty:ty, $resty:ty => [ ]
     ) => {
         fn $mname(&mut self, $($aname: $aty,)*) -> $crate::Result<$resty> {
-            use $crate::protocol::{Decode, MessageType, Error, helpers};
             static MNAME: &'static str = stringify!($mname);
 
             let args = $iname { $($aname: Some($aname),)* ..::std::default::Default::default() };
-            try!(helpers::send(&mut self.protocol, &mut self.transport,
-                                        MNAME, MessageType::Call, &args));
+            try!(self.sendcall(MNAME, &args));
             Ok(())
         }
     };
@@ -303,14 +299,12 @@ macro_rules! service_client_method {
                 $mname:ident($($aname:ident: $aty:ty => $aid:expr,)*) -> $rty:ty, $resty:ty => [ ]
     ) => {
         fn $mname(&mut self, $($aname: $aty,)*) -> $crate::Result<$resty> {
-            use $crate::protocol::{Decode, MessageType, Error, helpers};
+            use $crate::protocol::{MessageType, Error};
             static MNAME: &'static str = stringify!($mname);
 
             let args = $iname { $($aname: Some($aname),)* ..::std::default::Default::default() };
-            try!(helpers::send(&mut self.protocol, &mut self.transport,
-                                                 MNAME, MessageType::Call, &args));
-
-            let (name, ty, _id) = try!(self.protocol.read_message_begin(&mut self.transport));
+            try!(self.sendcall(MNAME, &args));
+            let (name, ty, _id) = try!(self.read_message_begin());
 
             match ty {
                 MessageType::Reply => (),
@@ -322,8 +316,7 @@ macro_rules! service_client_method {
             }
 
             let result = service_client_result!(
-                protocol = &mut self.protocol,
-                transport = &mut self.transport,
+                client = self,
                 ret = $rty,
                 exc = $ename [ ]
             );
@@ -342,14 +335,12 @@ macro_rules! service_client_method {
                     [ $($ename:ident $efname:ident : $ety:ty => $eid:expr,)+ ]
     ) => {
         fn $mname(&mut self, $($aname: $aty,)*) -> $crate::Result<$resty> {
-            use $crate::protocol::{Decode, MessageType, Error, helpers};
+            use $crate::protocol::{MessageType, Error};
             static MNAME: &'static str = stringify!($mname);
 
             let args = $iname { $($aname: Some($aname),)* ..::std::default::Default::default() };
-            try!(helpers::send(&mut self.protocol, &mut self.transport,
-                                                 MNAME, MessageType::Call, &args));
-
-            let (name, ty, _id) = try!(self.protocol.read_message_begin(&mut self.transport));
+            try!(self.sendcall(MNAME, &args));
+            let (name, ty, _id) = try!(self.read_message_begin());
 
             match ty {
                 MessageType::Reply => (),
@@ -361,8 +352,7 @@ macro_rules! service_client_method {
             }
 
             let result = service_client_result!(
-                protocol = &mut self.protocol,
-                transport = &mut self.transport,
+                client = self,
                 ret = $rty,
                 exc = $edname [ $($ename $efname : $ety => $eid,)+ ]
             );
