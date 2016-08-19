@@ -15,9 +15,7 @@ pub fn encode<T: Encode>(x: &T) -> MockProtocol {
 }
 
 pub fn decode<T: Decode>(protocol: &mut MockProtocol) -> T {
-    let mut instance = T::default();
-    instance.decode(protocol, &mut MockTransport::new(vec![])).unwrap();
-    instance
+    Decode::decode(protocol, &mut MockTransport::new(vec![])).unwrap()
 }
 
 pub fn field_end() -> ProtocolAction {

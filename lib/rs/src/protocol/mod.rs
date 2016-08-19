@@ -141,8 +141,8 @@ pub trait Encode: ThriftTyped {
 }
 
 pub trait Decode: ThriftTyped + Default {
-    fn decode<P, T>(&mut self, &mut P, &mut T) -> Result<()>
-    where P: Protocol, T: Transport;
+    fn decode<P, T>(&mut P, &mut T) -> Result<Self>
+        where P: Protocol, T: Transport;
 }
 
 pub trait Protocol {
@@ -285,7 +285,7 @@ pub mod helpers {
             // doesn't receive Reply messages
             (fname, _, _) => {
                 if &fname[..] == op {
-                    try!(result.decode(protocol, transport));
+                    *result = try!(R::decode(protocol, transport));
                     try!(protocol.read_message_end(transport));
                     Ok(AppResult::Success)
                  }

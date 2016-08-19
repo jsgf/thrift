@@ -261,13 +261,10 @@ macro_rules! service_client_result {
              match (typ, id) {
                  ($crate::protocol::Type::Stop, _) => break,
                  (ty, 0) if ty == <$rty as ThriftTyped>::typ() => {
-                     let mut r: $rty = Default::default();
-                     try!(r.decode(protocol, transport));
-                     ret = Ok(r);
+                     ret = Ok(try!(Decode::decode(protocol, transport)))
                  },
                  $((ty, $eid) if ty == <$ety as ThriftTyped>::typ() => {
-                     let mut e: $ety = Default::default();
-                     try!(e.decode(protocol, transport));
+                     let e = try!(Decode::decode(protocol, transport));
                      ret = Err($exty::$efname(e));
                  },)*
                  _ => {
@@ -429,8 +426,9 @@ macro_rules! strukt {
             }
         }
 
+        #[allow(unused_mut)]
         impl $crate::protocol::Decode for $name {
-            fn decode<P, T>(&mut self, protocol: &mut P, transport: &mut T) -> $crate::Result<()>
+            fn decode<P, T>(protocol: &mut P, transport: &mut T) -> $crate::Result<Self>
             where P: $crate::Protocol, T: $crate::Transport {
                 #[allow(unused_imports)]
                 use $crate::protocol::{Decode, ThriftTyped};
@@ -439,15 +437,16 @@ macro_rules! strukt {
 
                 try!(protocol.read_struct_begin(transport));
 
+                let mut ret = Self::default();
                 loop {
                     let (_, typ, id) = try!(protocol.read_field_begin(transport));
 
                     match (typ, id) {
                         ($crate::protocol::Type::Stop, _) => break,
                         $((ty, $reqid) if ty == <$reqtype as ThriftTyped>::typ() =>
-                            try!(self.$reqfield.decode(protocol, transport)),)*
+                            ret.$reqfield = try!(Decode::decode(protocol, transport)),)*
                         $((ty, $optid) if ty == <$opttype as ThriftTyped>::typ() =>
-                            try!(self.$optfield.decode(protocol, transport)),)*
+                            ret.$optfield = try!(Decode::decode(protocol, transport)),)*
                         _ => try!(protocol.skip(transport, typ))
                     };
 
@@ -456,7 +455,7 @@ macro_rules! strukt {
 
                 try!(protocol.read_struct_end(transport));
 
-                Ok(())
+                Ok(ret)
             }
         }
     }
@@ -508,7 +507,7 @@ macro_rules! union {
         }
 
         impl $crate::protocol::Decode for $name {
-            fn decode<P, T>(&mut self, protocol: &mut P, transport: &mut T) -> $crate::Result<()>
+            fn decode<P, T>(protocol: &mut P, transport: &mut T) -> $crate::Result<Self>
             where P: $crate::Protocol, T: $crate::Transport {
                 #[allow(unused_imports)]
                 use $crate::protocol::{Decode, ThriftTyped};
@@ -517,7 +516,7 @@ macro_rules! union {
 
                 try!(protocol.read_struct_begin(transport));
 
-                *self = $name::Unknown;
+                let mut ret = $name::Unknown;
 
                 loop {
                     let (_, typ, id) = try!(protocol.read_field_begin(transport));
@@ -525,9 +524,7 @@ macro_rules! union {
                     match (typ, id) {
                         ($crate::protocol::Type::Stop, _) => break,
                         $((ty, $id) if ty == <$typ as ThriftTyped>::typ() => {
-                            let mut v: $typ = Default::default();
-                            try!(v.decode(protocol, transport));
-                            *self = $name::$field(v);
+                            ret = $name::$field(try!(Decode::decode(protocol, transport)));
                         },)*
                         _ => try!(protocol.skip(transport, typ))
                     };
@@ -537,7 +534,7 @@ macro_rules! union {
 
                 try!(protocol.read_struct_end(transport));
 
-                Ok(())
+                Ok(ret)
             }
         }
     }
@@ -582,10 +579,9 @@ macro_rules! enom {
         }
 
         impl $crate::protocol::Decode for $name {
-            fn decode<P, T>(&mut self, protocol: &mut P, transport: &mut T) -> $crate::Result<()>
+            fn decode<P, T>(protocol: &mut P, transport: &mut T) -> $crate::Result<Self>
             where P: $crate::Protocol, T: $crate::Transport {
-                *self = try!($crate::protocol::helpers::read_enum(protocol, transport));
-                Ok(())
+                Ok(try!($crate::protocol::helpers::read_enum(protocol, transport)))
             }
         }
     }
