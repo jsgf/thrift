@@ -9,7 +9,7 @@ macro_rules! service {
                     [ $($sename:ident $sefname:ident : $sety:ty => $seid:expr,)* ],
           )*
      ],
-     parents = [ $($pmod:ident: $pclient:ident,)* ],
+     parent = [ $($pmod:ident: $pclient:ident)* ],
      bounds = [$($boundty:ident: $bound:ident,)*],
      fields = [$($fname:ident: $fty:ty,)*]) => {
          pub mod $modname {
@@ -33,7 +33,7 @@ macro_rules! service {
                 service_client! {
                     name = $name,
                     service_methods = [ $($siname -> $soname $sername = $smname($($saname: $saty => $said,)*) -> $srty, $sresty => [$($sename $sefname: $sety => $seid,)*],)* ],
-                    parents = [ $($pmod : $pclient,)* ]
+                    parent = [ $($pmod : $pclient)* ]
                 }
             }
 
@@ -218,7 +218,7 @@ macro_rules! service_client {
                     [$($sename:ident $sefname:ident : $sety:ty => $seid:expr,)*],
           )*
      ],
-     parents = [ $($pmod:ident: $pclient:ident,)* ]) => {
+     parent = [ $($pmod:ident: $pclient:ident)* ]) => {
         $(use super::super::$pmod ::client:: $pclient;)*
         pub trait $name: $($pclient),* {
             $(fn $smname(&mut self, $($saname: $saty),*) -> $crate::Result<$sresty>;)*

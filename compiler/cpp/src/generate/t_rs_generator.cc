@@ -455,13 +455,14 @@ void t_rs_generator::generate_service(t_service* tservice) {
     indent(f_mod_) << "],\n";
 
     // The methods from parent services that need to go in the processor.
-    indent(f_mod_) << "parents = [\n";
+    indent(f_mod_) << "parent = [\n";
     indent_up();
 
-    for (auto parent = tservice->get_extends();
-         parent;
-         parent = parent->get_extends()) {
-      indent(f_mod_) << underscore(parent->get_name()) << ": " << pascalcase(parent->get_name()) << ",\n";
+    // Check to see if this is an extension. services can only extend one other service, and
+    // including it implicitly includes all its parents as well.
+    if (tservice->get_extends()) {
+      auto parent = tservice->get_extends();
+      indent(f_mod_) << underscore(parent->get_name()) << ": " << pascalcase(parent->get_name()) << "\n";
     }
 
     indent_down();

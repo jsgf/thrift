@@ -83,7 +83,7 @@ service! {
         GetStructArgs -> GetStructResult GetStructExn = shared.get_struct(key: i32 => 1,) -> DeeplyNested, DeeplyNested => [],
         OnewayArgs -> OnewayResult OnewayExn = shared.oneway(thing: i32 => 1,) -> (), () => [],
     ],
-    parents = [],
+    parent = [],
     bounds = [S: SharedService,],
     fields = [shared: S,]
 }
@@ -97,7 +97,7 @@ service! {
              another: i32 => 3,
          ) -> Operation, Operation => [],
      ],
-     parents = [ shared_service: SharedService, ],
+     parent = [ shared_service: SharedService ],
      bounds = [S: SharedService, C: ChildService,],
      fields = [shared: S, child: C,]
 }
@@ -108,7 +108,7 @@ service! {
     service_methods = [
         OperationArgs -> OperationResult OperationExn = this.operation() -> i32, ::std::result::Result<i32, OperationExn> => [bad Bad: Exception => 1,],
     ],
-    parents = [],
+    parent = [],
     bounds = [S: ServiceWithException,],
     fields = [this: S,]
 }
