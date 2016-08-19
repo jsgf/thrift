@@ -288,7 +288,7 @@ macro_rules! service_client_method {
         fn $mname(&mut self, $($aname: $aty,)*) -> $crate::Result<$resty> {
             static MNAME: &'static str = stringify!($mname);
 
-            let args = $iname { $($aname: Some($aname),)* ..::std::default::Default::default() };
+            let args = $iname { $($aname: Some($aname),)* ..Default::default() };
             try!(self.sendcall(MNAME, &args));
             Ok(())
         }
@@ -302,16 +302,16 @@ macro_rules! service_client_method {
             use $crate::protocol::{MessageType, Error};
             static MNAME: &'static str = stringify!($mname);
 
-            let args = $iname { $($aname: Some($aname),)* ..::std::default::Default::default() };
-            try!(self.sendcall(MNAME, &args));
-            let (name, ty, _id) = try!(self.read_message_begin());
+            let args = $iname { $($aname: Some($aname),)* ..Default::default() };
+            let seq = try!(self.sendcall(MNAME, &args));
+            let (name, ty, id) = try!(self.read_message_begin());
 
             match ty {
                 MessageType::Reply => (),
                 MessageType::Exception => return Err($crate::Error::from(Error::UserException)),
                 _ => return Err($crate::Error::from(Error::ProtocolViolation)),
             }
-            if name != MNAME {
+            if name != MNAME || seq != id {
                 return Err($crate::Error::from(Error::ProtocolViolation));
             }
 
@@ -338,16 +338,16 @@ macro_rules! service_client_method {
             use $crate::protocol::{MessageType, Error};
             static MNAME: &'static str = stringify!($mname);
 
-            let args = $iname { $($aname: Some($aname),)* ..::std::default::Default::default() };
-            try!(self.sendcall(MNAME, &args));
-            let (name, ty, _id) = try!(self.read_message_begin());
+            let args = $iname { $($aname: Some($aname),)* ..Default::default() };
+            let seq = try!(self.sendcall(MNAME, &args));
+            let (name, ty, id) = try!(self.read_message_begin());
 
             match ty {
                 MessageType::Reply => (),
                 MessageType::Exception => return Err($crate::Error::from(Error::UserException)),
                 _ => return Err($crate::Error::from(Error::ProtocolViolation)),
             }
-            if name != MNAME {
+            if name != MNAME || seq != id {
                 return Err($crate::Error::from(Error::ProtocolViolation));
             }
 

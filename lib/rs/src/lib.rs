@@ -101,7 +101,7 @@ impl<P, T> Client<P, T> where P: Protocol, T: Transport {
         try!(args.encode(&mut self.protocol, &mut self.transport));
         try!(self.protocol.write_message_end(&mut self.transport));
         try!(self.transport.flush());
-        Ok(())
+        Ok(self.seq)
     }
 
     proto_pass!(read_message_begin -> (String, protocol::MessageType, i32));
