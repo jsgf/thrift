@@ -289,7 +289,7 @@ macro_rules! service_client_method {
             static MNAME: &'static str = stringify!($mname);
 
             let args = $iname { $($aname: Some($aname),)* ..Default::default() };
-            try!(self.sendcall(MNAME, &args));
+            try!(self.sendcall(true, MNAME, &args));
             Ok(())
         }
     };
@@ -303,7 +303,7 @@ macro_rules! service_client_method {
             static MNAME: &'static str = stringify!($mname);
 
             let args = $iname { $($aname: Some($aname),)* ..Default::default() };
-            let seq = try!(self.sendcall(MNAME, &args));
+            let seq = try!(self.sendcall(false, MNAME, &args));
             let (name, ty, id) = try!(self.read_message_begin());
 
             match ty {
@@ -339,7 +339,7 @@ macro_rules! service_client_method {
             static MNAME: &'static str = stringify!($mname);
 
             let args = $iname { $($aname: Some($aname),)* ..Default::default() };
-            let seq = try!(self.sendcall(MNAME, &args));
+            let seq = try!(self.sendcall(false, MNAME, &args));
             let (name, ty, id) = try!(self.read_message_begin());
 
             match ty {

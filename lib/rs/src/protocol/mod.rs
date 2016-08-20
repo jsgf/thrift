@@ -126,6 +126,7 @@ impl MessageType {
             0x01 => Some(MessageType::Call),
             0x02 => Some(MessageType::Reply),
             0x03 => Some(MessageType::Exception),
+            0x04 => Some(MessageType::Oneway),
             _ => None,
         }
     }
