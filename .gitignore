@@ -322,3 +322,5 @@ erl_crash.dump
 /ylwrap
 
 /cmake_*
+ 
+ccache
