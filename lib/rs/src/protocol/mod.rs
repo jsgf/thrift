@@ -118,6 +118,7 @@ pub enum MessageType {
     Call = 0x01,
     Reply = 0x02,
     Exception = 0x03,
+    Oneway = 0x04,
 }
 
 impl MessageType {
