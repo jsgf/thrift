@@ -104,9 +104,7 @@ class t_rs_generator : public t_oop_generator {
   string render_suffix(t_type* type);
   string render_type_init(t_type* type);
 
-  void generate_service_generics(t_service* tservice);
-  void generate_service_fields(t_service* tservice);
-  void generate_service_methods(char field, t_service* tservice);
+  void generate_service_methods(t_service* tservice);
   void generate_service_method_arglist(const vector<t_field*>& fields, bool enumfield);
   void generate_service_uses(t_service* tservice);
 
@@ -449,7 +447,7 @@ void t_rs_generator::generate_service(t_service* tservice) {
     indent(f_mod_) << "service_methods = [\n";
     indent_up();
 
-    generate_service_methods('a', tservice);
+    generate_service_methods(tservice);
 
     indent_down();
     indent(f_mod_) << "],\n";
@@ -466,21 +464,13 @@ void t_rs_generator::generate_service(t_service* tservice) {
     }
 
     indent_down();
-    indent(f_mod_) << "],\n";
-
-    indent(f_mod_) << "bounds = [";
-    generate_service_generics(tservice);
-    f_mod_ << "],\n";
-
-    indent(f_mod_) << "fields = [";
-    generate_service_fields(tservice);
     f_mod_ << "]\n";
 
     indent_down();
     indent(f_mod_) << "}\n\n";
 }
 
-void t_rs_generator::generate_service_methods(char field, t_service* tservice) {
+void t_rs_generator::generate_service_methods(t_service* tservice) {
     vector<t_function*> functions = tservice->get_functions();
     vector<t_function*>::const_iterator f_iter;
     for (f_iter = functions.begin(); f_iter != functions.end(); ++f_iter) {
@@ -495,7 +485,7 @@ void t_rs_generator::generate_service_methods(char field, t_service* tservice) {
         }
 
         indent(f_mod_) << argname << " -> " << resname << " " << exnname << " = "
-          << field << "." << tfunction->get_name() << "(\n";
+          << tfunction->get_name() << "(\n";
 
         indent_up();
         generate_service_method_arglist(tfunction->get_arglist()->get_members(), false);
@@ -515,30 +505,6 @@ void t_rs_generator::generate_service_methods(char field, t_service* tservice) {
 
         indent(f_mod_) << "],\n";
     }
-}
-
-void t_rs_generator::generate_service_generics(t_service* tservice) {
-  t_service* parent = tservice;
-  char generic = 'A';
-
-  while (parent && generic <= 'Z') {
-    f_mod_ << generic << ": " << parent->get_name() << ", ";
-    parent = parent->get_extends();
-    generic++;
-  }
-}
-
-void t_rs_generator::generate_service_fields(t_service* tservice) {
-  t_service* parent = tservice;
-  char generic = 'A';
-  char field = 'a';
-
-  while (parent && generic <= 'Z' && field <= 'z') {
-    f_mod_ << field << ": " << generic << ", ";
-    parent = parent->get_extends();
-    generic++;
-    field++;
-  }
 }
 
 void t_rs_generator::generate_service_method_arglist(const vector<t_field*>& fields, bool enumfield) {

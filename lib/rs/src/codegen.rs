@@ -5,13 +5,11 @@ macro_rules! service {
      service_methods = [
          $(
              // ThriftArgStruct -> ThriftResultStruct ThriftExnStruct= fieldname.methodname ( (arg: ty => idx)* ) -> rustreturn => [ (exn: ty => idx )* ]
-             $siname:ident -> $soname:ident $sername:ident = $smfname:ident . $smname:ident( $($saname:ident: $saty:ty => $said:expr,)* ) -> $srty:ty, $sresty:ty =>
+             $siname:ident -> $soname:ident $sername:ident = $smname:ident( $($saname:ident: $saty:ty => $said:expr,)* ) -> $srty:ty, $sresty:ty =>
                     [ $($sename:ident $sefname:ident : $sety:ty => $seid:expr,)* ],
           )*
      ],
-     parent = [ $($pmod:ident: $pclient:ident)* ],
-     bounds = [$($boundty:ident: $bound:ident,)*],
-     fields = [$($fname:ident: $fty:ty,)*]) => {
+     parent = [ $($pmod:ident: $pclient:ident)* ]) => {
          pub mod $modname {
             pub mod client {
                 pub use super::super::common::*;
@@ -40,15 +38,11 @@ macro_rules! service {
             pub mod processor {
                 pub use super::super::common::*;
 
-/* XXX parent things
                 service_processor! {
                     name = $name,
-                    service_methods = [ $($siname -> $soname $sername = $smfname.$smname($($saname: $saty => $said,)*) -> $srty => [$($sename $sefname: $sety => $seid,)*],)* ],
-                    parent_methods = [ $($piname -> $poname $pername = $pmfname.$pmname($($paname: $paty => $paid,)*) -> $prty => [$($pename $pefname: $pety => $peid,)*],)* ],
-                    bounds = [ $($boundty: $bound,)* ],
-                    fields = [ $($fname: $fty,)* ]
+                    service_methods = [ $($siname -> $soname $sername = $smname($($saname: $saty => $said,)*) -> $srty => [$($sename $sefname: $sety => $seid,)*],)* ],
+                    parent = [ $($pmod : $pclient)* ]
                 }
-  */
             }
         }
     }
@@ -99,24 +93,30 @@ macro_rules! method_result_strukt {
 }
 
 #[macro_export]
+macro_rules! service_trait_method {
+    ($siname:ident -> $soname:ident $sername:ident = $smname:ident($($saname:ident: $saty:ty => $said:expr,)*) -> $srty:ty =>
+                   [ ]) => {
+        fn $smname( $($saname: $saty),* ) -> $srty;
+    };
+    ($siname:ident -> $soname:ident $sername:ident = $smname:ident($($saname:ident: $saty:ty => $said:expr,)*) -> $srty:ty =>
+                   [ $($sename:ident $sefname:ident : $sety:ty => $seid:expr,)* ]) => {
+        fn $smname( $($saname: $saty),* ) -> ::std::result::Result<$srty, $sername>;
+    };
+}
+
+#[macro_export]
 macro_rules! service_processor {
     (name = $name:ident,
      service_methods = [
          $(
-             $siname:ident -> $soname:ident $sername:ident = $smfname:ident.$smname:ident($($saname:ident: $saty:ty => $said:expr,)*) -> $srty:ty =>
+             $siname:ident -> $soname:ident $sername:ident = $smname:ident($($saname:ident: $saty:ty => $said:expr,)*) -> $srty:ty =>
                    [ $($sename:ident $sefname:ident : $sety:ty => $seid:expr,)* ],
          )*
      ],
-     parent_methods = [
-         $(
-             $piname:ident -> $poname:ident $pername:ident = $pmfname:ident.$pmname:ident($($paname:ident: $paty:ty => $paid:expr,)*) -> $prty:ty =>
-                    [ $($pename:ident $pefname:ident : $pety:ty => $peid:expr,)* ],
-         )*
-     ],
-     bounds = [$($boundty:ident: $bound:ident,)*],
-     fields = [$($fname:ident: $fty:ty,)*]) => {
+     parent = [ $($pmod:ident: $pclient:ident)* ]) => {
         pub trait $name {
-            $(fn $smname(&self, $($saname: $saty),*) -> ::std::result::Result<$srty, $soname>;)*
+            $( service_trait_method! { $siname -> $soname $sername = $smname( $($saname: $saty => $said,)* ) -> $srty =>
+                [ $( $sename $sefname : $sety => $seid,)* ]} )*
         }
 
         $(
@@ -134,39 +134,6 @@ macro_rules! service_processor {
             // exceptions
             method_exception_enum! { name=$sername, fields = { $( $sefname: $sety, )* }}
         )*
-
-        pub struct ServiceProcessor<$($boundty: $bound),*> {
-            $($fname: $fty,)*
-            _ugh: ()
-        }
-
-        impl<$($boundty: $bound),*> ServiceProcessor<$($boundty),*> {
-            pub fn new($($fname: $fty),*) -> Self {
-                ServiceProcessor { $($fname: $fname,)* _ugh: () }
-            }
-
-            pub fn dispatch<P: $crate::Protocol, T: $crate::Transport>(&self, prot: &mut P, transport: &mut T,
-                                                                       name: &str, ty: $crate::protocol::MessageType, id: i32) -> $crate::Result<()> {
-                match name {
-                    $(stringify!($smname) => self.$smname(prot, transport, ty, id),)*
-                    $(stringify!($pmname) => self.$pmname(prot, transport, ty, id),)*
-                    _ => Err($crate::Error::from($crate::protocol::Error::ProtocolViolation))
-                }
-            }
-
-            $(service_processor_method! { method = $siname -> $soname = $smfname.$smname($($saname: $saty => $said,)*) -> $srty => [$($sename $sefname : $sety => $seid,)*] })*
-            $(service_processor_method! { method = $piname -> $poname = $pmfname.$pmname($($paname: $paty => $paid,)*) -> $prty => [$($pename $pefname : $pety => $peid,)*] })*
-        }
-
-        impl<P: $crate::Protocol, T: $crate::Transport, $($boundty: $bound),*> $crate::Processor<P, T> for ServiceProcessor<$($boundty),*> {
-            fn process(&self, protocol: &mut P, transport: &mut T) -> $crate::Result<()> {
-                #[allow(unused_imports)]
-                use $crate::Protocol;
-
-                let (name, ty, id) = try!(protocol.read_message_begin(transport));
-                self.dispatch(protocol, transport, &name, ty, id)
-            }
-        }
     }
 }
 
@@ -239,8 +206,6 @@ macro_rules! service_client {
 // We're not using the normal struct unpack, because we have to pay attention to possibly
 // unknown fields - if the server sends an exception we don't know about, we still have to
 // consider the call a failure.
-//
-// XXX make a function?
 #[macro_export]
 macro_rules! service_client_result {
     (client = $client:expr,

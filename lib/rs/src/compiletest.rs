@@ -80,35 +80,29 @@ service! {
     name = shared_service,
     trait_name = SharedService,
     service_methods = [
-        GetStructArgs -> GetStructResult GetStructExn = shared.get_struct(key: i32 => 1,) -> DeeplyNested, DeeplyNested => [],
-        OnewayArgs -> OnewayResult OnewayExn = shared.oneway(thing: i32 => 1,) -> (), () => [],
+        GetStructArgs -> GetStructResult GetStructExn = get_struct(key: i32 => 1,) -> DeeplyNested, DeeplyNested => [],
+        OnewayArgs -> OnewayResult OnewayExn = oneway(thing: i32 => 1,) -> (), () => [],
     ],
-    parent = [],
-    bounds = [S: SharedService,],
-    fields = [shared: S,]
+    parent = []
 }
 
 service! {
      name = child_service,
      trait_name = ChildService,
      service_methods = [
-         OperationArgs -> OperationResult OperationExn = child.operation(
+         OperationArgs -> OperationResult OperationExn = operation(
              one: String => 2,
              another: i32 => 3,
          ) -> Operation, Operation => [],
      ],
-     parent = [ shared_service: SharedService ],
-     bounds = [S: SharedService, C: ChildService,],
-     fields = [shared: S, child: C,]
+     parent = [ shared_service: SharedService ]
 }
 
 service! {
     name = service_with_exception,
     trait_name = ServiceWithException,
     service_methods = [
-        OperationArgs -> OperationResult OperationExn = this.operation() -> i32, ::std::result::Result<i32, OperationExn> => [bad Bad: Exception => 1,],
+        OperationArgs -> OperationResult OperationExn = operation() -> i32, ::std::result::Result<i32, OperationExn> => [bad Bad: Exception => 1,],
     ],
-    parent = [],
-    bounds = [S: ServiceWithException,],
-    fields = [this: S,]
+    parent = []
 }
