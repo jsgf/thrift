@@ -14,17 +14,6 @@ macro_rules! service {
             pub mod client {
                 pub use super::super::common::*;
                 $(
-                    // args
-                    strukt! { name = $siname, derive = [ Debug ],
-                        reqfields = {},
-                        optfields = { $( $saname: $saty => $said, default = Default::default(), )* }
-                    }
-                    // results
-                    method_result_strukt! { name = $soname, derive = [ Debug ],
-                        reqfields = { },
-                        optfields = { success: $srty => 0, default = Default::default(),
-                                    $( $sename: $sety => $seid, default = Default::default(), )* }
-                    }
                     // exceptions
                     method_exception_enum! { name=$sername, fields = { $( $sefname: $sety, )* }}
                 )*
@@ -60,7 +49,7 @@ macro_rules! method_exception_enum {
      fields = {
          $( $fname:ident : $fty:ty, )*
      }) => {
-         #[derive(Debug,Clone)]
+         #[derive(Debug, Clone)]
          pub enum $name {
              Unknown,
              $( $fname($fty), )*
@@ -96,11 +85,63 @@ macro_rules! method_result_strukt {
 macro_rules! service_trait_method {
     ($siname:ident -> $soname:ident $sername:ident = $smname:ident($($saname:ident: $saty:ty => $said:expr,)*) -> $srty:ty =>
                    [ ]) => {
-        fn $smname( $($saname: $saty),* ) -> $srty;
+        fn $smname( &mut self $(, $saname: $saty)* ) -> $srty;
     };
     ($siname:ident -> $soname:ident $sername:ident = $smname:ident($($saname:ident: $saty:ty => $said:expr,)*) -> $srty:ty =>
                    [ $($sename:ident $sefname:ident : $sety:ty => $seid:expr,)* ]) => {
-        fn $smname( $($saname: $saty),* ) -> ::std::result::Result<$srty, $sername>;
+        fn $smname( &mut self $(, $saname: $saty)* ) -> ::std::result::Result<$srty, $sername>;
+    };
+}
+
+#[macro_export]
+macro_rules! service_handler {
+    (ctxt = $ctxt:expr,
+     protocol = $proto:expr,
+     transport = $trans:expr,
+     seq = $seq:expr,
+     $siname:ident -> oneway oneway = $smname:ident($($saname:ident: $saty:ty => $said:expr,)*) -> $srty:ty =>
+                   [ ]) => {{
+        let args = try!($siname::decode($proto, $trans));
+        let _ = $ctxt.$smname( $(args.$saname.unwrap_or_else(|| Default::default())),*);
+        Ok(())
+    }};
+    (ctxt = $ctxt:expr,
+     protocol = $proto:expr,
+     transport = $trans:expr,
+     seq = $seq:expr,
+     $siname:ident -> $soname:ident $sername:ident = $smname:ident($($saname:ident: $saty:ty => $said:expr,)*) -> $srty:ty =>
+                   [ ]) => {
+        let args = try!($siname::decode($proto, $trans));
+        let ret = $ctxt.$smname( $(args.$saname.unwrap_or_else(|| Default::default())),*);
+        let ret = $soname { success: Some(ret), ..Default::default() };
+        try!($proto.write_message_begin($trans, stringify!($smname), MessageType::Reply, $seq));
+        try!(ret.encode($proto, $trans));
+        try!($proto.write_message_end($trans));
+        try!($trans.flush());
+        Ok(())
+    };
+    (ctxt = $ctxt:expr,
+     protocol = $proto:expr,
+     transport = $trans:expr,
+     seq = $seq:expr,
+     $siname:ident -> $soname:ident $sername:ident = $smname:ident($($saname:ident: $saty:ty => $said:expr,)*) -> $srty:ty =>
+                   [ $($sename:ident $sefname:ident : $sety:ty => $seid:expr,)* ]) => {
+        let args = try!($siname::decode($proto, $trans));
+        let ret = $ctxt.$smname( $(args.$saname.unwrap_or_else(|| Default::default())),*);
+        let ret = match ret {
+            Ok(v) => $soname { success: Some(v), ..Default::default() },
+            Err(exn) => {
+                match exn {
+                    $($sername :: $sefname(exn) => $soname { $sename: Some(exn), ..Default::default() },)*
+                    $sername :: Unknown => panic!("unknown"),
+                }
+            }
+        };
+        try!($proto.write_message_begin($trans, stringify!($smname), MessageType::Reply, $seq));
+        try!(ret.encode($proto, $trans));
+        try!($proto.write_message_end($trans));
+        try!($trans.flush());
+        Ok(())
     };
 }
 
@@ -114,26 +155,56 @@ macro_rules! service_processor {
          )*
      ],
      parent = [ $($pmod:ident: $pclient:ident)* ]) => {
+         use $crate::{Handler, Service};
+         use $crate::protocol::{Decode, Protocol};
+         use $crate::transport::Transport;
         pub trait $name {
-            $( service_trait_method! { $siname -> $soname $sername = $smname( $($saname: $saty => $said,)* ) -> $srty =>
-                [ $( $sename $sefname : $sety => $seid,)* ]} )*
+            $( service_trait_method! {
+                $siname -> $soname $sername = $smname( $($saname: $saty => $said,)* ) -> $srty =>
+                    [ $( $sename $sefname : $sety => $seid,)* ]
+            } )*
         }
 
         $(
-            // args
-            strukt! { name = $siname, derive = [ Debug ],
-                reqfields = {},
-                optfields = { $( $saname: $saty => $said, default = Default::default(), )* }
-            }
-            // results
-            method_result_strukt! { name = $soname, derive = [ Debug ],
-                reqfields = { },
-                optfields = { success: $srty => 0, default = Default::default(),
-                            $( $sename: $sety => $seid, default = Default::default(), )* }
-            }
             // exceptions
             method_exception_enum! { name=$sername, fields = { $( $sefname: $sety, )* }}
         )*
+
+        #[allow(unused_variables, unused_imports)]
+        pub fn register<Ctxt: $name + Clone + 'static, P: Protocol, T: Transport>(svc: &mut Service<P, T>, ctxt: &Ctxt) {
+            $(
+                {
+                    struct MethodHandler<Ctxt>(Ctxt);
+                    impl<Ctxt: $name, P: Protocol, T: Transport> Handler<P, T> for MethodHandler<Ctxt> {
+                        fn handle(&mut self, proto: &mut P, trans: &mut T) -> $crate::Result<()> {
+                            use $crate::protocol::{Encode, MessageType};
+
+                            // args
+                            strukt! { name = $siname, derive = [ Debug ],
+                                reqfields = {},
+                                optfields = { $( $saname: $saty => $said, default = Default::default(), )* }
+                            }
+                            // results
+                            method_result_strukt! { name = $soname, derive = [ Debug ],
+                                reqfields = { },
+                                optfields = { success: $srty => 0, default = Default::default(),
+                                            $( $sename: $sety => $seid, default = Default::default(), )* }
+                            }
+
+                            service_handler! {
+                                ctxt = &mut self.0,
+                                protocol = proto,
+                                transport = trans,
+                                seq = unimplemented!(),
+                                $siname -> $soname $sername = $smname( $($saname: $saty => $said,)* ) -> $srty =>
+                                        [ $( $sename $sefname : $sety => $seid,)* ]
+                            }
+                        }
+                    }
+                    svc.register(stringify!($smname), Box::new(MethodHandler(ctxt.clone())));
+                }
+            )*
+        }
     }
 }
 
@@ -253,6 +324,11 @@ macro_rules! service_client_method {
         fn $mname(&mut self, $($aname: $aty,)*) -> $crate::Result<$resty> {
             static MNAME: &'static str = stringify!($mname);
 
+            // args
+            strukt! { name = $iname, derive = [ Debug ],
+                reqfields = {},
+                optfields = { $( $aname: $aty => $aid, default = Default::default(), )* }
+            }
             let args = $iname { $($aname: Some($aname),)* ..Default::default() };
             try!(self.sendcall(true, MNAME, &args));
             Ok(())
@@ -267,6 +343,17 @@ macro_rules! service_client_method {
             use $crate::protocol::{MessageType, Error};
             static MNAME: &'static str = stringify!($mname);
 
+            // args
+            strukt! { name = $iname, derive = [ Debug ],
+                reqfields = {},
+                optfields = { $( $aname: $aty => $aid, default = Default::default(), )* }
+            }
+            // results
+            method_result_strukt! { name = $oname, derive = [ Debug ],
+                reqfields = { },
+                optfields = { success: $rty => 0, default = Default::default(),
+                             }
+            }
             let args = $iname { $($aname: Some($aname),)* ..Default::default() };
             let seq = try!(self.sendcall(false, MNAME, &args));
             let (name, ty, id) = try!(self.read_message_begin());
@@ -303,6 +390,17 @@ macro_rules! service_client_method {
             use $crate::protocol::{MessageType, Error};
             static MNAME: &'static str = stringify!($mname);
 
+            // args
+            strukt! { name = $iname, derive = [ Debug ],
+                reqfields = {},
+                optfields = { $( $aname: $aty => $aid, default = Default::default(), )* }
+            }
+            // results
+            method_result_strukt! { name = $oname, derive = [ Debug ],
+                reqfields = { },
+                optfields = { success: $rty => 0, default = Default::default(),
+                            $( $ename: $ety => $eid, default = Default::default(), )* }
+            }
             let args = $iname { $($aname: Some($aname),)* ..Default::default() };
             let seq = try!(self.sendcall(false, MNAME, &args));
             let (name, ty, id) = try!(self.read_message_begin());

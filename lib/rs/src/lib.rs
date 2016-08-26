@@ -120,3 +120,14 @@ impl<P, T> Client<P, T> where P: Protocol, T: Transport {
         D::decode(&mut self.protocol, &mut self.transport)
     }
 }
+
+pub trait Handler<P: Protocol, T: Transport> {
+    fn handle(&mut self, proto: &mut P, trans: &mut T) -> Result<()>;
+}
+
+pub struct Service<P, T>(P, T);
+impl<P: Protocol, T: Transport> Service<P, T> {
+    pub fn register(&mut self, name: &str, handler: Box<Handler<P, T>>) {
+        unimplemented!()
+    }
+}

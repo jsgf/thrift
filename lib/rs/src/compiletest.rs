@@ -86,6 +86,19 @@ service! {
     parent = []
 }
 
+struct TestCtxt(i32);
+use std::sync::{Arc, Mutex};
+use self::shared_service::processor::SharedService;
+impl SharedService for Arc<Mutex<TestCtxt>> {
+    fn get_struct(&mut self, key: i32) -> common::DeeplyNested {
+        let v = &mut self.lock().expect("lock failed").0;
+        assert_eq!(key, *v);
+        *v += key;
+        common::DeeplyNested::default()
+    }
+    fn oneway(&mut self, _thing: i32) -> () { unimplemented!() }
+}
+
 service! {
      name = child_service,
      trait_name = ChildService,
@@ -105,4 +118,16 @@ service! {
         OperationArgs -> OperationResult OperationExn = operation() -> i32, ::std::result::Result<i32, OperationExn> => [bad Bad: Exception => 1,],
     ],
     parent = []
+}
+
+use self::service_with_exception::processor::{ServiceWithException, OperationExn};
+impl ServiceWithException for Arc<Mutex<TestCtxt>> {
+    fn operation(&mut self) -> Result<i32, OperationExn> {
+        let _v = &mut self.lock().expect("lock failed").0;
+        if unimplemented!() {
+            Ok(*_v)
+        } else {
+            Err(Default::default())
+        }
+    }
 }
