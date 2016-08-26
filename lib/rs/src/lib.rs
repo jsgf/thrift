@@ -76,32 +76,31 @@ impl fmt::Display for Error {
 pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug, Clone)]
-pub struct Client<P,T> {
+pub struct Client<P> {
     protocol: P,
-    transport: T,
     seq: i32,
 }
 
 macro_rules! proto_pass {
     ($name:ident -> $ret:ty) => {
         pub fn $name(&mut self) -> Result<$ret> {
-            self.protocol.$name(&mut self.transport)
+            self.protocol.$name()
         }
     }
 }
 
-impl<P, T> Client<P, T> where P: Protocol, T: Transport {
-    pub fn new(proto: P, trans: T) -> Self {
-        Client { protocol: proto, transport: trans, seq: 0 }
+impl<P> Client<P> where P: Protocol {
+    pub fn new(proto: P) -> Self {
+        Client { protocol: proto, seq: 0 }
     }
 
     pub fn sendcall<W: protocol::Encode>(&mut self, oneway: bool, name: &str, args: &W) -> Result<i32> {
         let ty = if oneway { protocol::MessageType::Oneway } else { protocol::MessageType::Call };
         self.seq += 1;
-        try!(self.protocol.write_message_begin(&mut self.transport, name, ty, self.seq));
-        try!(args.encode(&mut self.protocol, &mut self.transport));
-        try!(self.protocol.write_message_end(&mut self.transport));
-        try!(self.transport.flush());
+        try!(self.protocol.write_message_begin(name, ty, self.seq));
+        try!(args.encode(&mut self.protocol));
+        try!(self.protocol.write_message_end());
+        try!(self.protocol.flush());
         Ok(self.seq)
     }
 
@@ -113,11 +112,11 @@ impl<P, T> Client<P, T> where P: Protocol, T: Transport {
     proto_pass!(read_field_end -> ());
 
     pub fn skip(&mut self, ty: protocol::Type) -> Result<()> {
-        self.protocol.skip(&mut self.transport, ty)
+        self.protocol.skip(ty)
     }
 
     pub fn decode<D: protocol::Decode>(&mut self) -> Result<D> {
-        D::decode(&mut self.protocol, &mut self.transport)
+        D::decode(&mut self.protocol)
     }
 }
 

@@ -19,7 +19,6 @@
 use std::{str, fmt};
 use std::error::Error as StdError;
 
-use transport::Transport;
 use Result;
 
 pub mod binary_protocol;
@@ -138,91 +137,89 @@ pub trait ThriftTyped {
 }
 
 pub trait Encode: ThriftTyped {
-    fn encode<P, T>(&self, &mut P, &mut T) -> Result<()>
-    where P: Protocol, T: Transport;
+    fn encode<P>(&self, &mut P) -> Result<()>
+        where P: Protocol;
 }
 
 pub trait Decode: ThriftTyped + Default {
-    fn decode<P, T>(&mut P, &mut T) -> Result<Self>
-        where P: Protocol, T: Transport;
+    fn decode<P>(&mut P) -> Result<Self>
+        where P: Protocol;
 }
 
 pub trait Protocol {
-    fn write_message_begin<T: Transport>(
+    fn write_message_begin(
         &mut self,
-        transport: &mut T,
         name: &str,
         message_type: MessageType,
         sequence_id: i32
     ) -> Result<()>;
-    fn write_message_end<T: Transport>(&mut self, transport: &mut T) -> Result<()>;
+    fn write_message_end(&mut self) -> Result<()>;
 
-    fn write_struct_begin<T: Transport>(&mut self, transport: &mut T, name: &str) -> Result<()>;
-    fn write_struct_end<T: Transport>(&mut self, transport: &mut T) -> Result<()>;
+    fn write_struct_begin(&mut self, name: &str) -> Result<()>;
+    fn write_struct_end(&mut self) -> Result<()>;
 
-    fn write_field_begin<T: Transport>(
+    fn write_field_begin(
         &mut self,
-        transport: &mut T,
         name: &str,
         field_type: Type,
         field_id: i16
     ) -> Result<()>;
-    fn write_field_end<T: Transport>(&mut self, transport: &mut T) -> Result<()>;
-    fn write_field_stop<T: Transport>(&mut self, transport: &mut T) -> Result<()>;
+    fn write_field_end(&mut self) -> Result<()>;
+    fn write_field_stop(&mut self) -> Result<()>;
 
-    fn write_map_begin<T: Transport>(
+    fn write_map_begin(
         &mut self,
-        transport: &mut T,
         key_type: Type,
         value_type: Type,
         size: usize
     ) -> Result<()>;
-    fn write_map_end<T: Transport>(&mut self, transport: &mut T) -> Result<()>;
+    fn write_map_end(&mut self) -> Result<()>;
 
-    fn write_list_begin<T: Transport>(&mut self, transport: &mut T, elem_type: Type, size: usize) -> Result<()>;
-    fn write_list_end<T: Transport>(&mut self, transport: &mut T) -> Result<()>;
+    fn write_list_begin(&mut self, elem_type: Type, size: usize) -> Result<()>;
+    fn write_list_end(&mut self) -> Result<()>;
 
-    fn write_set_begin<T: Transport>(&mut self, transport: &mut T, elem_type: Type, size: usize) -> Result<()>;
-    fn write_set_end<T: Transport>(&mut self, transport: &mut T) -> Result<()>;
+    fn write_set_begin(&mut self, elem_type: Type, size: usize) -> Result<()>;
+    fn write_set_end(&mut self) -> Result<()>;
 
-    fn write_bool<T: Transport>(&mut self, transport: &mut T, value: bool) -> Result<()>;
-    fn write_byte<T: Transport>(&mut self, transport: &mut T, value: i8) -> Result<()>;
-    fn write_i16<T: Transport>(&mut self, transport: &mut T, value: i16) -> Result<()>;
-    fn write_i32<T: Transport>(&mut self, transport: &mut T, value: i32) -> Result<()>;
-    fn write_i64<T: Transport>(&mut self, transport: &mut T, value: i64) -> Result<()>;
-    fn write_double<T: Transport>(&mut self, transport: &mut T, value: f64) -> Result<()>;
-    fn write_str<T: Transport>(&mut self, transport: &mut T, value: &str) -> Result<()>;
-    fn write_string<T: Transport>(&mut self, transport: &mut T, value: &String) -> Result<()>;
-    fn write_binary<T: Transport>(&mut self, transport: &mut T, value: &[u8]) -> Result<()>;
+    fn write_bool(&mut self, value: bool) -> Result<()>;
+    fn write_byte(&mut self, value: i8) -> Result<()>;
+    fn write_i16(&mut self, value: i16) -> Result<()>;
+    fn write_i32(&mut self, value: i32) -> Result<()>;
+    fn write_i64(&mut self, value: i64) -> Result<()>;
+    fn write_double(&mut self, value: f64) -> Result<()>;
+    fn write_str(&mut self, value: &str) -> Result<()>;
+    fn write_string(&mut self, value: &String) -> Result<()>;
+    fn write_binary(&mut self, value: &[u8]) -> Result<()>;
 
-    fn read_message_begin<T: Transport>(&mut self, transport: &mut T) -> Result<(String, MessageType, i32)>;
-    fn read_message_end<T: Transport>(&mut self, transport: &mut T) -> Result<()>;
+    fn read_message_begin(&mut self) -> Result<(String, MessageType, i32)>;
+    fn read_message_end(&mut self) -> Result<()>;
 
-    fn read_struct_begin<T: Transport>(&mut self, transport: &mut T) -> Result<String>;
-    fn read_struct_end<T: Transport>(&mut self, transport: &mut T) -> Result<()>;
+    fn read_struct_begin(&mut self) -> Result<String>;
+    fn read_struct_end(&mut self) -> Result<()>;
 
-    fn read_field_begin<T: Transport>(&mut self, transport: &mut T) -> Result<(String, Type, i16)>;
-    fn read_field_end<T: Transport>(&mut self, transport: &mut T) -> Result<()>;
+    fn read_field_begin(&mut self) -> Result<(String, Type, i16)>;
+    fn read_field_end(&mut self) -> Result<()>;
 
-    fn read_map_begin<T: Transport>(&mut self, transport: &mut T) -> Result<(Type, Type, i32)>;
-    fn read_map_end<T: Transport>(&mut self, transport: &mut T) -> Result<()>;
+    fn read_map_begin(&mut self) -> Result<(Type, Type, i32)>;
+    fn read_map_end(&mut self) -> Result<()>;
 
-    fn read_list_begin<T: Transport>(&mut self, transport: &mut T) -> Result<(Type, i32)>;
-    fn read_list_end<T: Transport>(&mut self, transport: &mut T) -> Result<()>;
+    fn read_list_begin(&mut self) -> Result<(Type, i32)>;
+    fn read_list_end(&mut self) -> Result<()>;
 
-    fn read_set_begin<T: Transport>(&mut self, transport: &mut T) -> Result<(Type, i32)>;
-    fn read_set_end<T: Transport>(&mut self, transport: &mut T) -> Result<()>;
+    fn read_set_begin(&mut self) -> Result<(Type, i32)>;
+    fn read_set_end(&mut self) -> Result<()>;
 
-    fn read_bool<T: Transport>(&mut self, transport: &mut T) -> Result<bool>;
-    fn read_byte<T: Transport>(&mut self, transport: &mut T) -> Result<i8>;
-    fn read_i16<T: Transport>(&mut self, transport: &mut T) -> Result<i16>;
-    fn read_i32<T: Transport>(&mut self, transport: &mut T) -> Result<i32>;
-    fn read_i64<T: Transport>(&mut self, transport: &mut T) -> Result<i64>;
-    fn read_double<T: Transport>(&mut self, transport: &mut T) -> Result<f64>;
-    fn read_string<T: Transport>(&mut self, transport: &mut T) -> Result<String>;
-    fn read_binary<T: Transport>(&mut self, transport: &mut T) -> Result<Vec<u8>>;
+    fn read_bool(&mut self) -> Result<bool>;
+    fn read_byte(&mut self) -> Result<i8>;
+    fn read_i16(&mut self) -> Result<i16>;
+    fn read_i32(&mut self) -> Result<i32>;
+    fn read_i64(&mut self) -> Result<i64>;
+    fn read_double(&mut self) -> Result<f64>;
+    fn read_string(&mut self) -> Result<String>;
+    fn read_binary(&mut self) -> Result<Vec<u8>>;
 
-    fn skip<T: Transport>(&mut self, transport: &mut T, type_: Type) -> Result<()>;
+    fn skip(&mut self, type_: Type) -> Result<()>;
+    fn flush(&mut self) -> Result<()>;
 }
 
 pub trait FromNum: Sized {
@@ -231,7 +228,6 @@ pub trait FromNum: Sized {
 
 pub mod helpers {
     use protocol::{Protocol, Type, MessageType, FromNum, Decode, Encode, Error};
-    use transport::Transport;
     use Result;
 
     #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
@@ -240,38 +236,38 @@ pub mod helpers {
         Exception,
     }
 
-    pub fn read_enum<F, T, P>(iprot: &mut P, transport: &mut T) -> Result<F>
-    where F: FromNum, T: Transport, P: Protocol {
-        let i = try!(iprot.read_i32(transport));
+    pub fn read_enum<F, P>(iprot: &mut P) -> Result<F>
+    where F: FromNum, P: Protocol {
+        let i = try!(iprot.read_i32());
         match <F as FromNum>::from_num(i) {
             Some(v) => Ok(v),
             None => Err(::Error::from(Error::ProtocolViolation)),
         }
     }
 
-    pub fn send<W, T, P>(protocol: &mut P, transport: &mut T,
+    pub fn send<W, P>(protocol: &mut P,
                          name: &str, _type: MessageType,
                          args: &W) -> Result<()>
-    where W: Encode, T: Transport, P: Protocol {
+    where W: Encode, P: Protocol {
         let cseqid: i32 = 0;    // XXX TODO FIXME
-        try!(protocol.write_message_begin(transport, name, _type, cseqid));
-        try!(args.encode(protocol, transport));
-        try!(protocol.write_message_end(transport));
-        try!(transport.flush());
+        try!(protocol.write_message_begin(name, _type, cseqid));
+        try!(args.encode(protocol));
+        try!(protocol.write_message_end());
+        try!(protocol.flush());
         Ok(())
     }
 
-    pub fn receive<R, T, P>(protocol: &mut P, transport: &mut T,
+    pub fn receive<R, P>(protocol: &mut P,
                             op: &str, result: &mut R) -> Result<AppResult>
-    where R: Decode, T: Transport, P: Protocol {
-        let (name, ty, id) = try!(protocol.read_message_begin(transport));
-        receive_body(protocol, transport, op, result, &name, ty, id)
+    where R: Decode, P: Protocol {
+        let (name, ty, id) = try!(protocol.read_message_begin());
+        receive_body(protocol, op, result, &name, ty, id)
     }
 
-    pub fn receive_body<R, T, P>(protocol: &mut P, transport: &mut T, op: &str,
+    pub fn receive_body<R, P>(protocol: &mut P, op: &str,
                                  result: &mut R, name: &str, ty: MessageType,
                                  id: i32) -> Result<AppResult>
-    where R: Decode, T: Transport, P: Protocol {
+    where R: Decode, P: Protocol {
         match (name, ty, id) {
             (_, MessageType::Exception, _) => {
                 println!("got exception");
@@ -279,7 +275,7 @@ pub mod helpers {
                 //let x = ApplicationException;
                 //x.read(&mut protocol)
                 //protocol.read_message_end();
-                //transport.read_end();
+                //protocol.read_end();
                 //throw x
                 Ok(AppResult::Exception)
             }
@@ -287,14 +283,14 @@ pub mod helpers {
             // doesn't receive Reply messages
             (fname, _, _) => {
                 if &fname[..] == op {
-                    *result = try!(R::decode(protocol, transport));
-                    try!(protocol.read_message_end(transport));
+                    *result = try!(R::decode(protocol));
+                    try!(protocol.read_message_end());
                     Ok(AppResult::Success)
                  }
                 else {
                     // FIXME: shall we err in this case?
-                    try!(protocol.skip(transport, Type::Struct));
-                    try!(protocol.read_message_end(transport));
+                    try!(protocol.skip(Type::Struct));
+                    try!(protocol.read_message_end());
                     Err(::Error::from(Error::ProtocolViolation))
                 }
             }

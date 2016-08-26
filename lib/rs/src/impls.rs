@@ -1,5 +1,5 @@
 pub use protocol::{self, Encode, Decode, Type, ThriftTyped};
-pub use {Protocol, Transport, Result, Error};
+pub use {Protocol, Result, Error};
 
 pub use std::collections::{HashSet, HashMap, BTreeSet, BTreeMap};
 pub use std::hash::Hash;
@@ -21,117 +21,117 @@ impl<K: ThriftTyped, V: ThriftTyped> ThriftTyped for HashMap<K, V> { fn typ() ->
 impl<K: ThriftTyped, V: ThriftTyped> ThriftTyped for BTreeMap<K, V> { fn typ() -> Type { Type::Map } }
 
 impl Encode for Vec<u8> {
-    fn encode<P, T>(&self, protocol: &mut P, transport: &mut T) -> Result<()>
-    where P: Protocol, T: Transport {
-        try!(protocol.write_binary(transport, &self[..]));
+    fn encode<P>(&self, protocol: &mut P) -> Result<()>
+    where P: Protocol {
+        try!(protocol.write_binary(&self[..]));
 
         Ok(())
     }
 }
 
 impl<X: Encode> Encode for Vec<X> {
-    fn encode<P, T>(&self, protocol: &mut P, transport: &mut T) -> Result<()>
-    where P: Protocol, T: Transport {
-        try!(protocol.write_list_begin(transport, X::typ(), self.len()));
+    fn encode<P>(&self, protocol: &mut P) -> Result<()>
+    where P: Protocol {
+        try!(protocol.write_list_begin(X::typ(), self.len()));
 
         for el in self {
-            try!(el.encode(protocol, transport));
+            try!(el.encode(protocol));
         }
 
-        try!(protocol.write_list_end(transport));
+        try!(protocol.write_list_end());
 
         Ok(())
     }
 }
 
 impl<X: Encode + Hash + Eq> Encode for HashSet<X> {
-    fn encode<P, T>(&self, protocol: &mut P, transport: &mut T) -> Result<()>
-    where P: Protocol, T: Transport {
-        try!(protocol.write_set_begin(transport, X::typ(), self.len()));
+    fn encode<P>(&self, protocol: &mut P) -> Result<()>
+    where P: Protocol {
+        try!(protocol.write_set_begin(X::typ(), self.len()));
 
         for el in self {
-            try!(el.encode(protocol, transport));
+            try!(el.encode(protocol));
         }
 
-        try!(protocol.write_set_end(transport));
+        try!(protocol.write_set_end());
 
         Ok(())
     }
 }
 
 impl<X: Encode + Ord + Eq> Encode for BTreeSet<X> {
-    fn encode<P, T>(&self, protocol: &mut P, transport: &mut T) -> Result<()>
-    where P: Protocol, T: Transport {
-        try!(protocol.write_set_begin(transport, X::typ(), self.len()));
+    fn encode<P>(&self, protocol: &mut P) -> Result<()>
+    where P: Protocol {
+        try!(protocol.write_set_begin(X::typ(), self.len()));
 
         for el in self {
-            try!(el.encode(protocol, transport));
+            try!(el.encode(protocol));
         }
 
-        try!(protocol.write_set_end(transport));
+        try!(protocol.write_set_end());
 
         Ok(())
     }
 }
 
 impl<K: Encode + Hash + Eq, V: Encode> Encode for HashMap<K, V> {
-    fn encode<P, T>(&self, protocol: &mut P, transport: &mut T) -> Result<()>
-    where P: Protocol, T: Transport {
-        try!(protocol.write_map_begin(transport, K::typ(), V::typ(), self.len()));
+    fn encode<P>(&self, protocol: &mut P) -> Result<()>
+    where P: Protocol {
+        try!(protocol.write_map_begin(K::typ(), V::typ(), self.len()));
 
         for (k, v) in self.iter() {
-            try!(k.encode(protocol, transport));
-            try!(v.encode(protocol, transport));
+            try!(k.encode(protocol));
+            try!(v.encode(protocol));
         }
 
-        try!(protocol.write_map_end(transport));
+        try!(protocol.write_map_end());
 
         Ok(())
     }
 }
 
 impl<K: Encode + Ord + Eq, V: Encode> Encode for BTreeMap<K, V> {
-    fn encode<P, T>(&self, protocol: &mut P, transport: &mut T) -> Result<()>
-    where P: Protocol, T: Transport {
-        try!(protocol.write_map_begin(transport, K::typ(), V::typ(), self.len()));
+    fn encode<P>(&self, protocol: &mut P) -> Result<()>
+    where P: Protocol {
+        try!(protocol.write_map_begin(K::typ(), V::typ(), self.len()));
 
         for (k, v) in self.iter() {
-            try!(k.encode(protocol, transport));
-            try!(v.encode(protocol, transport));
+            try!(k.encode(protocol));
+            try!(v.encode(protocol));
         }
 
-        try!(protocol.write_map_end(transport));
+        try!(protocol.write_map_end());
 
         Ok(())
     }
 }
 
 impl<X: Encode> Encode for Option<X> {
-    fn encode<P, T>(&self, protocol: &mut P, transport: &mut T) -> Result<()>
-    where P: Protocol, T: Transport {
-        self.as_ref().map(|this| this.encode(protocol, transport)).unwrap_or(Ok(()))
+    fn encode<P>(&self, protocol: &mut P) -> Result<()>
+    where P: Protocol {
+        self.as_ref().map(|this| this.encode(protocol)).unwrap_or(Ok(()))
     }
 }
 
 impl Encode for String {
-    fn encode<P, T>(&self, protocol: &mut P, transport: &mut T) -> Result<()>
-    where P: Protocol, T: Transport {
-        try!(protocol.write_string(transport, self));
+    fn encode<P>(&self, protocol: &mut P) -> Result<()>
+    where P: Protocol {
+        try!(protocol.write_string(self));
         Ok(())
     }
 }
 
 impl Encode for () {
-    fn encode<P, T>(&self, _: &mut P, _: &mut T) -> Result<()>
-    where P: Protocol, T: Transport { Ok(()) }
+    fn encode<P>(&self, _: &mut P) -> Result<()>
+    where P: Protocol { Ok(()) }
 }
 
 macro_rules! prim_encode {
     ($($T:ty => $method:ident),*) => {
         $(impl Encode for $T {
-            fn encode<P, T>(&self, protocol: &mut P, transport: &mut T) -> Result<()>
-            where P: Protocol, T: Transport {
-                try!(protocol.$method(transport, *self));
+            fn encode<P>(&self, protocol: &mut P) -> Result<()>
+            where P: Protocol {
+                try!(protocol.$method(*self));
                 Ok(())
             }
         })*
@@ -143,27 +143,27 @@ prim_encode! {
     i32 => write_i32, i64 => write_i64, f64 => write_double
 }
 
-fn decode<D, P, T>(protocol: &mut P, transport: &mut T) -> Result<D>
-where D: Decode, P: Protocol, T: Transport {
-     D::decode(protocol, transport)
+fn decode<D, P>(protocol: &mut P) -> Result<D>
+where D: Decode, P: Protocol {
+     D::decode(protocol)
 }
 
 impl Decode for Vec<u8> {
-    fn decode<P, T>(protocol: &mut P, transport: &mut T) -> Result<Self>
-    where P: Protocol, T: Transport {
-        protocol.read_binary(transport)
+    fn decode<P>(protocol: &mut P) -> Result<Self>
+    where P: Protocol {
+        protocol.read_binary()
     }
 }
 
 impl<X: Decode> Decode for Vec<X> {
-    fn decode<P, T>(protocol: &mut P, transport: &mut T) -> Result<Self>
-    where P: Protocol, T: Transport {
-        let (typ, len) = try!(protocol.read_list_begin(transport));
+    fn decode<P>(protocol: &mut P) -> Result<Self>
+    where P: Protocol {
+        let (typ, len) = try!(protocol.read_list_begin());
 
         if typ == X::typ() {
             let mut ret = Vec::with_capacity(len as usize);
-            for _ in 0..len { ret.push(try!(decode(protocol, transport))); }
-            try!(protocol.read_list_end(transport));
+            for _ in 0..len { ret.push(try!(decode(protocol))); }
+            try!(protocol.read_list_end());
             Ok(ret)
         } else {
             Err(Error::from(protocol::Error::ProtocolViolation))
@@ -172,14 +172,14 @@ impl<X: Decode> Decode for Vec<X> {
 }
 
 impl<X: Decode + Eq + Hash> Decode for HashSet<X> {
-    fn decode<P, T>(protocol: &mut P, transport: &mut T) -> Result<Self>
-    where P: Protocol, T: Transport {
-        let (typ, len) = try!(protocol.read_set_begin(transport));
+    fn decode<P>(protocol: &mut P) -> Result<Self>
+    where P: Protocol {
+        let (typ, len) = try!(protocol.read_set_begin());
 
         if typ == X::typ() {
             let mut ret = HashSet::with_capacity(len as usize);
-            for _ in 0..len { ret.insert(try!(decode(protocol, transport))); }
-            try!(protocol.read_set_end(transport));
+            for _ in 0..len { ret.insert(try!(decode(protocol))); }
+            try!(protocol.read_set_end());
             Ok(ret)
         } else {
             Err(Error::from(protocol::Error::ProtocolViolation))
@@ -188,14 +188,14 @@ impl<X: Decode + Eq + Hash> Decode for HashSet<X> {
 }
 
 impl<X: Decode + Ord + Hash> Decode for BTreeSet<X> {
-    fn decode<P, T>(protocol: &mut P, transport: &mut T) -> Result<Self>
-    where P: Protocol, T: Transport {
-        let (typ, len) = try!(protocol.read_set_begin(transport));
+    fn decode<P>(protocol: &mut P) -> Result<Self>
+    where P: Protocol {
+        let (typ, len) = try!(protocol.read_set_begin());
 
         if typ == X::typ() {
             let mut ret = BTreeSet::new();
-            for _ in 0..len { ret.insert(try!(decode(protocol, transport))); }
-            try!(protocol.read_set_end(transport));
+            for _ in 0..len { ret.insert(try!(decode(protocol))); }
+            try!(protocol.read_set_end());
             Ok(ret)
         } else {
             Err(Error::from(protocol::Error::ProtocolViolation))
@@ -204,19 +204,19 @@ impl<X: Decode + Ord + Hash> Decode for BTreeSet<X> {
 }
 
 impl<K: Decode + Eq + Hash, V: Decode> Decode for HashMap<K, V> {
-    fn decode<P, T>(protocol: &mut P, transport: &mut T) -> Result<Self>
-    where P: Protocol, T: Transport {
-        let (ktyp, vtyp, len) = try!(protocol.read_map_begin(transport));
+    fn decode<P>(protocol: &mut P) -> Result<Self>
+    where P: Protocol {
+        let (ktyp, vtyp, len) = try!(protocol.read_map_begin());
 
         if ktyp == K::typ() && vtyp == V::typ() {
             let mut ret = HashMap::with_capacity(len as usize);
             for _ in 0..len {
-                let key = try!(decode(protocol, transport));
-                let value = try!(decode(protocol, transport));
+                let key = try!(decode(protocol));
+                let value = try!(decode(protocol));
                 ret.insert(key, value);
             }
 
-            try!(protocol.read_map_end(transport));
+            try!(protocol.read_map_end());
             Ok(ret)
         } else {
             Err(Error::from(protocol::Error::ProtocolViolation))
@@ -225,19 +225,19 @@ impl<K: Decode + Eq + Hash, V: Decode> Decode for HashMap<K, V> {
 }
 
 impl<K: Decode + Ord + Hash, V: Decode> Decode for BTreeMap<K, V> {
-    fn decode<P, T>(protocol: &mut P, transport: &mut T) -> Result<Self>
-    where P: Protocol, T: Transport {
-        let (ktyp, vtyp, len) = try!(protocol.read_map_begin(transport));
+    fn decode<P>(protocol: &mut P) -> Result<Self>
+    where P: Protocol {
+        let (ktyp, vtyp, len) = try!(protocol.read_map_begin());
 
         if ktyp == K::typ() && vtyp == V::typ() {
             let mut ret = BTreeMap::new();
             for _ in 0..len {
-                let key = try!(decode(protocol, transport));
-                let value = try!(decode(protocol, transport));
+                let key = try!(decode(protocol));
+                let value = try!(decode(protocol));
                 ret.insert(key, value);
             }
 
-            try!(protocol.read_map_end(transport));
+            try!(protocol.read_map_end());
             Ok(ret)
         } else {
             Err(Error::from(protocol::Error::ProtocolViolation))
@@ -246,23 +246,23 @@ impl<K: Decode + Ord + Hash, V: Decode> Decode for BTreeMap<K, V> {
 }
 
 impl<X: Decode> Decode for Option<X> {
-    fn decode<P, T>(protocol: &mut P, transport: &mut T) -> Result<Self>
-    where P: Protocol, T: Transport {
-        Ok(Some(try!(X::decode(protocol, transport))))
+    fn decode<P>(protocol: &mut P) -> Result<Self>
+    where P: Protocol {
+        Ok(Some(try!(X::decode(protocol))))
     }
 }
 
 impl Decode for () {
-    fn decode<P, T>(_: &mut P, _: &mut T) -> Result<Self>
-    where P: Protocol, T: Transport { Ok(()) }
+    fn decode<P>(_: &mut P) -> Result<Self>
+    where P: Protocol { Ok(()) }
 }
 
 macro_rules! prim_decode {
     ($($T:ty => $method:ident),*) => {
         $(impl Decode for $T {
-            fn decode<P, T>(protocol: &mut P, transport: &mut T) -> Result<Self>
-            where P: Protocol, T: Transport {
-                Ok(try!(protocol.$method(transport)))
+            fn decode<P>(protocol: &mut P) -> Result<Self>
+            where P: Protocol {
+                Ok(try!(protocol.$method()))
             }
         })*
     }

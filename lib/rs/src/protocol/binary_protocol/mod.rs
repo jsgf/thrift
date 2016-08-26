@@ -26,15 +26,17 @@ use podio::{ReadPodExt, WritePodExt, BigEndian};
 static BINARY_PROTOCOL_VERSION_1: u16 = 0x8001;
 
 #[derive(Copy, Clone, Debug)]
-pub struct BinaryProtocol;
+pub struct BinaryProtocol<T>(T);
 
-impl BinaryProtocol {
-    fn write_type<T: Transport>(&mut self, transport: &mut T, type_: Type) -> Result<()> {
-        self.write_byte(transport, type_ as i8)
+impl<T: Transport> BinaryProtocol<T> {
+    pub fn new(t: T) -> Self { BinaryProtocol(t) }
+    
+    fn write_type(&mut self, type_: Type) -> Result<()> {
+        self.write_byte(type_ as i8)
     }
 
-    fn read_type<T: Transport>(&mut self, transport: &mut T) -> Result<Type> {
-        let raw = try!(self.read_byte(transport));
+    fn read_type(&mut self) -> Result<Type> {
+        let raw = try!(self.read_byte());
         match Type::from_num(raw as u64) {
             Some(type_) => Ok(type_),
             None => Err(Error::from(protocol::Error::ProtocolViolation)),
@@ -42,278 +44,285 @@ impl BinaryProtocol {
     }
 }
 
-impl Protocol for BinaryProtocol {
-    fn write_message_begin<T: Transport>(
+impl<T: Transport> Protocol for BinaryProtocol<T> {
+    fn write_message_begin(
         &mut self,
-        transport: &mut T,
         name: &str,
         message_type: MessageType,
         sequence_id: i32
     ) -> Result<()> {
         let version = ((BINARY_PROTOCOL_VERSION_1 as i32) << 16) | message_type as i32;
-        try!(self.write_i32(transport, version));
-        try!(self.write_str(transport, name));
-        self.write_i32(transport, sequence_id)
+        try!(self.write_i32(version));
+        try!(self.write_str(name));
+        self.write_i32(sequence_id)
     }
 
-    fn write_message_end<T: Transport>(&mut self, _transport: &mut T) -> Result<()> {
+    fn write_message_end(&mut self) -> Result<()> {
         Ok(())
     }
 
-    fn write_struct_begin<T: Transport>(&mut self, _transport: &mut T, _name: &str) -> Result<()> {
+    fn write_struct_begin(&mut self, _name: &str) -> Result<()> {
         Ok(())
     }
 
-    fn write_struct_end<T: Transport>(&mut self, _transport: &mut T) -> Result<()> {
+    fn write_struct_end(&mut self) -> Result<()> {
         Ok(())
     }
 
-    fn write_field_begin<T: Transport>(
+    fn write_field_begin(
         &mut self,
-        transport: &mut T,
         _name: &str,
         field_type: Type,
         field_id: i16
     ) -> Result<()> {
-        try!(self.write_type(transport, field_type));
-        self.write_i16(transport, field_id)
+        try!(self.write_type(field_type));
+        self.write_i16(field_id)
     }
 
-    fn write_field_end<T: Transport>(&mut self, _transport: &mut T) -> Result<()> {
+    fn write_field_end(&mut self) -> Result<()> {
         Ok(())
     }
 
-    fn write_field_stop<T: Transport>(&mut self, transport: &mut T) -> Result<()> {
-        self.write_byte(transport, protocol::Type::Stop as i8)
+    fn write_field_stop(&mut self) -> Result<()> {
+        self.write_byte(protocol::Type::Stop as i8)
     }
 
-    fn write_map_begin<T: Transport>(
+    fn write_map_begin(
         &mut self,
-        transport: &mut T,
         key_type: Type,
         value_type: Type,
         size: usize
     ) -> Result<()> {
-        try!(self.write_type(transport, key_type));
-        try!(self.write_type(transport, value_type));
-        self.write_i32(transport, size as i32)
+        try!(self.write_type(key_type));
+        try!(self.write_type(value_type));
+        self.write_i32(size as i32)
     }
 
-    fn write_map_end<T: Transport>(&mut self, _transport: &mut T) -> Result<()> {
+    fn write_map_end(&mut self) -> Result<()> {
         Ok(())
     }
 
-    fn write_list_begin<T: Transport>(&mut self, transport: &mut T, elem_type: Type, size: usize) -> Result<()> {
-        try!(self.write_type(transport, elem_type));
-        self.write_i32(transport, size as i32)
+    fn write_list_begin(&mut self, elem_type: Type, size: usize) -> Result<()> {
+        try!(self.write_type(elem_type));
+        self.write_i32(size as i32)
     }
 
-    fn write_list_end<T: Transport>(&mut self, _transport: &mut T) -> Result<()> {
+    fn write_list_end(&mut self) -> Result<()> {
         Ok(())
     }
 
-    fn write_set_begin<T: Transport>(&mut self, transport: &mut T, elem_type: Type, size: usize) -> Result<()> {
-        try!(self.write_type(transport, elem_type));
-        self.write_i32(transport, size as i32)
+    fn write_set_begin(&mut self, elem_type: Type, size: usize) -> Result<()> {
+        try!(self.write_type(elem_type));
+        self.write_i32(size as i32)
     }
 
-    fn write_set_end<T: Transport>(&mut self, _transport: &mut T) -> Result<()> {
+    fn write_set_end(&mut self) -> Result<()> {
         Ok(())
     }
 
-    fn write_bool<T: Transport>(&mut self, transport: &mut T, value: bool) -> Result<()> {
-        self.write_byte(transport, value as i8)
+    fn write_bool(&mut self, value: bool) -> Result<()> {
+        self.write_byte(value as i8)
     }
 
-    fn write_byte<T: Transport>(&mut self, mut transport: &mut T, value: i8) -> Result<()> {
-        Ok(try!(transport.write_i8(value)))
+    fn write_byte(&mut self, value: i8) -> Result<()> {
+        Ok(try!(self.0.write_i8(value)))
     }
 
-    fn write_i16<T: Transport>(&mut self, mut transport: &mut T, value: i16) -> Result<()> {
-        Ok(try!(transport.write_i16::<BigEndian>(value)))
+    fn write_i16(&mut self, value: i16) -> Result<()> {
+        Ok(try!(self.0.write_i16::<BigEndian>(value)))
     }
 
-    fn write_i32<T: Transport>(&mut self, mut transport: &mut T, value: i32) -> Result<()> {
-        Ok(try!(transport.write_i32::<BigEndian>(value)))
+    fn write_i32(&mut self, value: i32) -> Result<()> {
+        Ok(try!(self.0.write_i32::<BigEndian>(value)))
     }
 
-    fn write_i64<T: Transport>(&mut self, mut transport: &mut T, value: i64) -> Result<()> {
-        Ok(try!(transport.write_i64::<BigEndian>(value)))
+    fn write_i64(&mut self, value: i64) -> Result<()> {
+        Ok(try!(self.0.write_i64::<BigEndian>(value)))
     }
 
-    fn write_double<T: Transport>(&mut self, mut transport: &mut T, value: f64) -> Result<()> {
-        Ok(try!(transport.write_f64::<BigEndian>(value)))
+    fn write_double(&mut self, value: f64) -> Result<()> {
+        Ok(try!(self.0.write_f64::<BigEndian>(value)))
     }
 
-    fn write_str<T: Transport>(&mut self, transport: &mut T, value: &str) -> Result<()> {
-        self.write_binary(transport, value.as_bytes())
+    fn write_str(&mut self, value: &str) -> Result<()> {
+        self.write_binary(value.as_bytes())
     }
 
-    fn write_string<T: Transport>(&mut self, transport: &mut T, value: &String) -> Result<()> {
-        self.write_binary(transport, (&value[..]).as_bytes())
+    fn write_string(&mut self, value: &String) -> Result<()> {
+        self.write_binary((&value[..]).as_bytes())
     }
 
-    fn write_binary<T: Transport>(&mut self, transport: &mut T, value: &[u8]) -> Result<()> {
-        try!(self.write_i32(transport, value.len() as i32));
-        Ok(try!(transport.write_all(value)))
+    fn write_binary(&mut self, value: &[u8]) -> Result<()> {
+        try!(self.write_i32(value.len() as i32));
+        Ok(try!(self.0.write_all(value)))
     }
 
-    fn read_message_begin<T: Transport>(&mut self, transport: &mut T) -> Result<(String, MessageType, i32)> {
-        let header = try!(self.read_i32(transport));
+    fn read_message_begin(&mut self) -> Result<(String, MessageType, i32)> {
+        let header = try!(self.read_i32());
         let version = (header >> 16) as u16;
         if version != BINARY_PROTOCOL_VERSION_1 {
             return Err(Error::from(protocol::Error::BadVersion));
         };
-        let name = try!(self.read_string(transport));
+        let name = try!(self.read_string());
         let raw_type = header & 0xff;
         let message_type = match MessageType::from_num(raw_type as u64) {
             Some(t) => t,
             None => return Err(Error::from(protocol::Error::ProtocolViolation)),
         };
-        let sequence_id = try!(self.read_i32(transport));
+        let sequence_id = try!(self.read_i32());
         Ok((name, message_type, sequence_id))
     }
 
-    fn read_message_end<T: Transport>(&mut self, _transport: &mut T) -> Result<()> {
+    fn read_message_end(&mut self) -> Result<()> {
         Ok(())
     }
 
-    fn read_struct_begin<T: Transport>(&mut self, _transport: &mut T) -> Result<String> {
+    fn read_struct_begin(&mut self) -> Result<String> {
         Ok(String::new())
     }
 
-    fn read_struct_end<T: Transport>(&mut self, _transport: &mut T) -> Result<()> {
+    fn read_struct_end(&mut self) -> Result<()> {
         Ok(())
     }
 
-    fn read_field_begin<T: Transport>(&mut self, transport: &mut T) -> Result<(String, Type, i16)> {
-        let field_type = try!(self.read_type(transport));
+    fn read_field_begin(&mut self) -> Result<(String, Type, i16)> {
+        let field_type = try!(self.read_type());
         let field_id = match field_type {
             protocol::Type::Stop => 0,
-            _ => try!(self.read_i16(transport)),
+            _ => try!(self.read_i16()),
         };
         Ok((String::new(), field_type, field_id))
     }
 
-    fn read_field_end<T: Transport>(&mut self, _transport: &mut T) -> Result<()> {
+    fn read_field_end(&mut self) -> Result<()> {
         Ok(())
     }
 
-    fn read_map_begin<T: Transport>(&mut self, transport: &mut T) -> Result<(Type, Type, i32)> {
-        let key_type = try!(self.read_type(transport));
-        let value_type = try!(self.read_type(transport));
-        let size = try!(self.read_i32(transport));
+    fn read_map_begin(&mut self) -> Result<(Type, Type, i32)> {
+        let key_type = try!(self.read_type());
+        let value_type = try!(self.read_type());
+        let size = try!(self.read_i32());
         Ok((key_type, value_type, size))
     }
 
-    fn read_map_end<T: Transport>(&mut self, _transport: &mut T) -> Result<()> {
+    fn read_map_end(&mut self) -> Result<()> {
         Ok(())
     }
 
-    fn read_list_begin<T: Transport>(&mut self, transport: &mut T) -> Result<(Type, i32)> {
-        let elem_type = try!(self.read_type(transport));
-        let size = try!(self.read_i32(transport));
+    fn read_list_begin(&mut self) -> Result<(Type, i32)> {
+        let elem_type = try!(self.read_type());
+        let size = try!(self.read_i32());
         Ok((elem_type, size))
     }
 
-    fn read_list_end<T: Transport>(&mut self, _transport: &mut T) -> Result<()> {
+    fn read_list_end(&mut self) -> Result<()> {
         Ok(())
     }
 
-    fn read_set_begin<T: Transport>(&mut self, transport: &mut T) -> Result<(Type, i32)> {
-        let elem_type = try!(self.read_type(transport));
-        let size = try!(self.read_i32(transport));
+    fn read_set_begin(&mut self) -> Result<(Type, i32)> {
+        let elem_type = try!(self.read_type());
+        let size = try!(self.read_i32());
         Ok((elem_type, size))
     }
 
-    fn read_set_end<T: Transport>(&mut self, _transport: &mut T) -> Result<()> {
+    fn read_set_end(&mut self) -> Result<()> {
         Ok(())
     }
 
-    fn read_bool<T: Transport>(&mut self, transport: &mut T) -> Result<bool> {
-        match try!(self.read_byte(transport)) {
+    fn read_bool(&mut self) -> Result<bool> {
+        match try!(self.read_byte()) {
             0 => Ok(false),
             _ => Ok(true),
         }
     }
 
-    fn read_byte<T: Transport>(&mut self, transport: &mut T) -> Result<i8> {
+    fn read_byte(&mut self) -> Result<i8> {
+        let transport = &mut self.0;
         Ok(try!(transport.read_i8()))
     }
 
-    fn read_i16<T: Transport>(&mut self, transport: &mut T) -> Result<i16> {
+    fn read_i16(&mut self) -> Result<i16> {
+        let transport = &mut self.0;
         Ok(try!(transport.read_i16::<BigEndian>()))
     }
 
-    fn read_i32<T: Transport>(&mut self, transport: &mut T) -> Result<i32> {
+    fn read_i32(&mut self) -> Result<i32> {
+        let transport = &mut self.0;
         Ok(try!(transport.read_i32::<BigEndian>()))
     }
 
-    fn read_i64<T: Transport>(&mut self, transport: &mut T) -> Result<i64> {
+    fn read_i64(&mut self) -> Result<i64> {
+        let transport = &mut self.0;
         Ok(try!(transport.read_i64::<BigEndian>()))
     }
 
-    fn read_double<T: Transport>(&mut self, transport: &mut T) -> Result<f64> {
+    fn read_double(&mut self) -> Result<f64> {
+        let transport = &mut self.0;
         Ok(try!(transport.read_f64::<BigEndian>()))
     }
 
-    fn read_string<T: Transport>(&mut self, transport: &mut T) -> Result<String> {
-        let bytes = try!(self.read_binary(transport));
+    fn read_string(&mut self) -> Result<String> {
+        let bytes = try!(self.read_binary());
         Ok(try!(String::from_utf8(bytes).map_err(|e| protocol::Error::from(e.utf8_error()))))
     }
 
-    fn read_binary<T: Transport>(&mut self, transport: &mut T) -> Result<Vec<u8>> {
-        let len = try!(self.read_i32(transport)) as usize;
+    fn read_binary(&mut self) -> Result<Vec<u8>> {
+        let len = try!(self.read_i32()) as usize;
         let mut res =  Vec::with_capacity(len);
         unsafe {
             res.set_len(len);
-            try!(transport.read_exact(&mut res[..]))
+            try!(self.0.read_exact(&mut res[..]))
         };
         Ok(res)
     }
 
-    fn skip<T: Transport>(&mut self, transport: &mut T, type_: Type) -> Result<()> {
+    fn flush(&mut self) -> Result<()> {
+        try!(self.0.flush());
+        Ok(())
+    }
+
+    fn skip(&mut self, type_: Type) -> Result<()> {
         match type_ {
-            Type::Bool => { try!(self.read_bool(transport)); }
-            Type::I8 => { try!(self.read_byte(transport)); }
-            Type::I16 => { try!(self.read_i16(transport)); }
-            Type::I32 => { try!(self.read_i32(transport)); }
-            Type::I64 => { try!(self.read_i64(transport)); }
-            Type::Double => { try!(self.read_double(transport)); }
-            Type::String => { try!(self.read_binary(transport)); }
+            Type::Bool => { try!(self.read_bool()); }
+            Type::I8 => { try!(self.read_byte()); }
+            Type::I16 => { try!(self.read_i16()); }
+            Type::I32 => { try!(self.read_i32()); }
+            Type::I64 => { try!(self.read_i64()); }
+            Type::Double => { try!(self.read_double()); }
+            Type::String => { try!(self.read_binary()); }
             Type::Struct => {
-                try!(self.read_struct_begin(transport));
+                try!(self.read_struct_begin());
                 loop {
-                    let (_, field_type, _) = try!(self.read_field_begin(transport));
+                    let (_, field_type, _) = try!(self.read_field_begin());
                     if field_type == Type::Stop {
                         break;
                     }
-                    try!(self.skip(transport, field_type));
-                    try!(self.read_field_end(transport));
+                    try!(self.skip(field_type));
+                    try!(self.read_field_end());
                 }
-                try!(self.read_struct_end(transport));
+                try!(self.read_struct_end());
             }
             Type::Map => {
-                let (key_type, value_type, size) = try!(self.read_map_begin(transport));
+                let (key_type, value_type, size) = try!(self.read_map_begin());
                 for _ in 0..size {
-                    try!(self.skip(transport, key_type));
-                    try!(self.skip(transport, value_type));
+                    try!(self.skip(key_type));
+                    try!(self.skip(value_type));
                 }
-                try!(self.read_map_end(transport));
+                try!(self.read_map_end());
             }
             Type::Set => {
-                let (elem_type, size) = try!(self.read_set_begin(transport));
+                let (elem_type, size) = try!(self.read_set_begin());
                 for _ in 0..size {
-                    try!(self.skip(transport, elem_type));
+                    try!(self.skip(elem_type));
                 }
-                try!(self.read_set_end(transport));
+                try!(self.read_set_end());
             }
             Type::List => {
-                let (elem_type, size) = try!(self.read_list_begin(transport));
+                let (elem_type, size) = try!(self.read_list_begin());
                 for _ in 0..size {
-                    try!(self.skip(transport, elem_type));
+                    try!(self.skip(elem_type));
                 }
-                try!(self.read_list_end(transport));
+                try!(self.read_list_end());
             }
             Type::Void => { }
             Type::Stop => { }

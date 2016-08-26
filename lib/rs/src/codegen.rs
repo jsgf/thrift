@@ -97,36 +97,33 @@ macro_rules! service_trait_method {
 macro_rules! service_handler {
     (ctxt = $ctxt:expr,
      protocol = $proto:expr,
-     transport = $trans:expr,
      seq = $seq:expr,
      $siname:ident -> oneway oneway = $smname:ident($($saname:ident: $saty:ty => $said:expr,)*) -> $srty:ty =>
                    [ ]) => {{
-        let args = try!($siname::decode($proto, $trans));
+        let args = try!($siname::decode($proto));
         let _ = $ctxt.$smname( $(args.$saname.unwrap_or_else(|| Default::default())),*);
         Ok(())
     }};
     (ctxt = $ctxt:expr,
      protocol = $proto:expr,
-     transport = $trans:expr,
      seq = $seq:expr,
      $siname:ident -> $soname:ident $sername:ident = $smname:ident($($saname:ident: $saty:ty => $said:expr,)*) -> $srty:ty =>
                    [ ]) => {
-        let args = try!($siname::decode($proto, $trans));
+        let args = try!($siname::decode($proto));
         let ret = $ctxt.$smname( $(args.$saname.unwrap_or_else(|| Default::default())),*);
         let ret = $soname { success: Some(ret), ..Default::default() };
-        try!($proto.write_message_begin($trans, stringify!($smname), MessageType::Reply, $seq));
-        try!(ret.encode($proto, $trans));
-        try!($proto.write_message_end($trans));
-        try!($trans.flush());
+        try!($proto.write_message_begin(stringify!($smname), MessageType::Reply, $seq));
+        try!(ret.encode($proto));
+        try!($proto.write_message_end());
+        try!($proto.flush());
         Ok(())
     };
     (ctxt = $ctxt:expr,
      protocol = $proto:expr,
-     transport = $trans:expr,
      seq = $seq:expr,
      $siname:ident -> $soname:ident $sername:ident = $smname:ident($($saname:ident: $saty:ty => $said:expr,)*) -> $srty:ty =>
                    [ $($sename:ident $sefname:ident : $sety:ty => $seid:expr,)* ]) => {
-        let args = try!($siname::decode($proto, $trans));
+        let args = try!($siname::decode($proto));
         let ret = $ctxt.$smname( $(args.$saname.unwrap_or_else(|| Default::default())),*);
         let ret = match ret {
             Ok(v) => $soname { success: Some(v), ..Default::default() },
@@ -137,10 +134,10 @@ macro_rules! service_handler {
                 }
             }
         };
-        try!($proto.write_message_begin($trans, stringify!($smname), MessageType::Reply, $seq));
-        try!(ret.encode($proto, $trans));
-        try!($proto.write_message_end($trans));
-        try!($trans.flush());
+        try!($proto.write_message_begin(stringify!($smname), MessageType::Reply, $seq));
+        try!(ret.encode($proto));
+        try!($proto.write_message_end());
+        try!($proto.flush());
         Ok(())
     };
 }
@@ -194,7 +191,6 @@ macro_rules! service_processor {
                             service_handler! {
                                 ctxt = &mut self.0,
                                 protocol = proto,
-                                transport = trans,
                                 seq = unimplemented!(),
                                 $siname -> $soname $sername = $smname( $($saname: $saty => $said,)* ) -> $srty =>
                                         [ $( $sename $sefname : $sety => $seid,)* ]
@@ -212,12 +208,11 @@ macro_rules! service_processor {
 macro_rules! service_processor_method {
     (method =
         $iname:ident -> oneway = $fname:ident.$mname:ident($($aname:ident: $aty:ty => $aid:expr,)*) -> () => [$($ename:ident $efname:ident : $ety:ty => $eid:expr,)*] ) => {
-        fn $mname<P: $crate::Protocol, T: $crate::Transport>(&self, prot: &mut P, transport: &mut T,
-                                                               ty: $crate::protocol::MessageType, id: i32) -> $crate::Result<()> {
+        fn $mname<P: $crate::Protocol>(&self, prot: &mut P, ty: $crate::protocol::MessageType, id: i32) -> $crate::Result<()> {
             static MNAME: &'static str = stringify!($mname);
 
             let mut args = $iname::default();
-            try!($crate::protocol::helpers::receive_body(prot, transport, MNAME,
+            try!($crate::protocol::helpers::receive_body(prot, MNAME,
                                                          &mut args, MNAME, ty, id));
 
             // TODO: Further investigate this unwrap.
@@ -227,12 +222,11 @@ macro_rules! service_processor_method {
     };
     (method =
         $iname:ident -> $oname:ident = $fname:ident.$mname:ident($($aname:ident: $aty:ty => $aid:expr,)*) -> $rty:ty => [$($ename:ident $efname:ident : $ety:ty => $eid:expr,)*] ) => {
-        fn $mname<P: $crate::Protocol, T: $crate::Transport>(&self, prot: &mut P, transport: &mut T,
-                                                               ty: $crate::protocol::MessageType, id: i32) -> $crate::Result<()> {
+        fn $mname<P: $crate::Protocol>(&self, prot: &mut P, ty: $crate::protocol::MessageType, id: i32) -> $crate::Result<()> {
             static MNAME: &'static str = stringify!($mname);
 
             let mut args = $iname::default();
-            try!($crate::protocol::helpers::receive_body(prot, transport, MNAME,
+            try!($crate::protocol::helpers::receive_body(prot, MNAME,
                                                          &mut args, MNAME, ty, id));
 
             // TODO: Further investigate this unwrap.
@@ -240,7 +234,7 @@ macro_rules! service_processor_method {
                 Ok(res) => $oname { success: Some(res), ..::std::default::Default::default() },
                 Err(exn) => { assert!(exn.success.is_none()); exn },
             };
-            try!($crate::protocol::helpers::send(prot, transport, MNAME,
+            try!($crate::protocol::helpers::send(prot, MNAME,
                                                  $crate::protocol::MessageType::Reply, &result));
 
             Ok(())
@@ -262,7 +256,7 @@ macro_rules! service_client {
             $(fn $smname(&mut self, $($saname: $saty),*) -> $crate::Result<$sresty>;)*
         }
 
-        impl<P: $crate::Protocol, T: $crate::Transport> $name for $crate::Client<P, T> {
+        impl<P: $crate::Protocol> $name for $crate::Client<P> {
             $(
                 service_client_method! {
                     // ThiftArgName -> ThriftReturnName = fieldname.method( (arg: type => idx)* ) -> return => [ (exn: ty => idx) ],
@@ -450,30 +444,30 @@ macro_rules! strukt {
         }
 
         impl $crate::protocol::Encode for $name {
-            fn encode<P, T>(&self, protocol: &mut P, transport: &mut T) -> $crate::Result<()>
-            where P: $crate::Protocol, T: $crate::Transport {
+            fn encode<P>(&self, protocol: &mut P) -> $crate::Result<()>
+            where P: $crate::Protocol {
                 #[allow(unused_imports)]
                 use $crate::protocol::{Encode, ThriftTyped};
                 #[allow(unused_imports)]
                 use $crate::{Protocol};
 
-                try!(protocol.write_struct_begin(transport, stringify!($name)));
+                try!(protocol.write_struct_begin(stringify!($name)));
 
                 $({
-                    try!(protocol.write_field_begin(transport, stringify!($reqfield), <$reqtype as ThriftTyped>::typ(), $reqid));
-                    try!(self.$reqfield.encode(protocol, transport));
-                    try!(protocol.write_field_end(transport));
+                    try!(protocol.write_field_begin(stringify!($reqfield), <$reqtype as ThriftTyped>::typ(), $reqid));
+                    try!(self.$reqfield.encode(protocol));
+                    try!(protocol.write_field_end());
                 })*
                 $({
                     if let Some(ref x) = self.$optfield {
-                        try!(protocol.write_field_begin(transport, stringify!($optfield), <$opttype as ThriftTyped>::typ(), $optid));
-                        try!(x.encode(protocol, transport));
-                        try!(protocol.write_field_end(transport));
+                        try!(protocol.write_field_begin(stringify!($optfield), <$opttype as ThriftTyped>::typ(), $optid));
+                        try!(x.encode(protocol));
+                        try!(protocol.write_field_end());
                     }
                 })*
 
-                try!(protocol.write_field_stop(transport));
-                try!(protocol.write_struct_end(transport));
+                try!(protocol.write_field_stop());
+                try!(protocol.write_struct_end());
 
                 Ok(())
             }
@@ -481,32 +475,32 @@ macro_rules! strukt {
 
         #[allow(unused_mut)]
         impl $crate::protocol::Decode for $name {
-            fn decode<P, T>(protocol: &mut P, transport: &mut T) -> $crate::Result<Self>
-            where P: $crate::Protocol, T: $crate::Transport {
+            fn decode<P>(protocol: &mut P) -> $crate::Result<Self>
+            where P: $crate::Protocol {
                 #[allow(unused_imports)]
                 use $crate::protocol::{Decode, ThriftTyped};
                 #[allow(unused_imports)]
                 use $crate::Protocol;
 
-                try!(protocol.read_struct_begin(transport));
+                try!(protocol.read_struct_begin());
 
                 let mut ret = Self::default();
                 loop {
-                    let (_, typ, id) = try!(protocol.read_field_begin(transport));
+                    let (_, typ, id) = try!(protocol.read_field_begin());
 
                     match (typ, id) {
                         ($crate::protocol::Type::Stop, _) => break,
                         $((ty, $reqid) if ty == <$reqtype as ThriftTyped>::typ() =>
-                            ret.$reqfield = try!(Decode::decode(protocol, transport)),)*
+                            ret.$reqfield = try!(Decode::decode(protocol)),)*
                         $((ty, $optid) if ty == <$opttype as ThriftTyped>::typ() =>
-                            ret.$optfield = try!(Decode::decode(protocol, transport)),)*
-                        _ => try!(protocol.skip(transport, typ))
+                            ret.$optfield = try!(Decode::decode(protocol)),)*
+                        _ => try!(protocol.skip(typ))
                     };
 
-                    try!(protocol.read_field_end(transport));
+                    try!(protocol.read_field_end());
                 }
 
-                try!(protocol.read_struct_end(transport));
+                try!(protocol.read_struct_end());
 
                 Ok(ret)
             }
@@ -535,57 +529,57 @@ macro_rules! union {
         }
 
         impl $crate::protocol::Encode for $name {
-            fn encode<P, T>(&self, protocol: &mut P, transport: &mut T) -> $crate::Result<()>
-            where P: $crate::Protocol, T: $crate::Transport {
+            fn encode<P>(&self, protocol: &mut P) -> $crate::Result<()>
+            where P: $crate::Protocol {
                 #[allow(unused_imports)]
                 use $crate::protocol::{Encode, ThriftTyped};
                 #[allow(unused_imports)]
                 use $crate::{Protocol};
 
-                try!(protocol.write_struct_begin(transport, stringify!($name)));
+                try!(protocol.write_struct_begin(stringify!($name)));
 
                 match self {
                     &$name::Unknown => (),
                     $(&$name::$field(ref val) => {
-                        try!(protocol.write_field_begin(transport, stringify!($field), <$typ as ThriftTyped>::typ(), $id));
-                        try!(val.encode(protocol, transport));
-                        try!(protocol.write_field_end(transport));
+                        try!(protocol.write_field_begin(stringify!($field), <$typ as ThriftTyped>::typ(), $id));
+                        try!(val.encode(protocol));
+                        try!(protocol.write_field_end());
                     },)*
                 }
-                try!(protocol.write_field_stop(transport));
-                try!(protocol.write_struct_end(transport));
+                try!(protocol.write_field_stop());
+                try!(protocol.write_struct_end());
 
                 Ok(())
             }
         }
 
         impl $crate::protocol::Decode for $name {
-            fn decode<P, T>(protocol: &mut P, transport: &mut T) -> $crate::Result<Self>
-            where P: $crate::Protocol, T: $crate::Transport {
+            fn decode<P>(protocol: &mut P) -> $crate::Result<Self>
+            where P: $crate::Protocol {
                 #[allow(unused_imports)]
                 use $crate::protocol::{Decode, ThriftTyped};
                 #[allow(unused_imports)]
                 use $crate::Protocol;
 
-                try!(protocol.read_struct_begin(transport));
+                try!(protocol.read_struct_begin());
 
                 let mut ret = $name::Unknown;
 
                 loop {
-                    let (_, typ, id) = try!(protocol.read_field_begin(transport));
+                    let (_, typ, id) = try!(protocol.read_field_begin());
 
                     match (typ, id) {
                         ($crate::protocol::Type::Stop, _) => break,
                         $((ty, $id) if ty == <$typ as ThriftTyped>::typ() => {
-                            ret = $name::$field(try!(Decode::decode(protocol, transport)));
+                            ret = $name::$field(try!(Decode::decode(protocol)));
                         },)*
-                        _ => try!(protocol.skip(transport, typ))
+                        _ => try!(protocol.skip(typ))
                     };
 
-                    try!(protocol.read_field_end(transport));
+                    try!(protocol.read_field_end());
                 }
 
-                try!(protocol.read_struct_end(transport));
+                try!(protocol.read_struct_end());
 
                 Ok(ret)
             }
@@ -622,19 +616,19 @@ macro_rules! enom {
         }
 
         impl $crate::protocol::Encode for $name {
-            fn encode<P, T>(&self, protocol: &mut P, transport: &mut T) -> $crate::Result<()>
-            where P: $crate::Protocol, T: $crate::Transport {
+            fn encode<P>(&self, protocol: &mut P) -> $crate::Result<()>
+            where P: $crate::Protocol {
                 #[allow(unused_imports)]
                 use $crate::Protocol;
 
-                protocol.write_i32(transport, *self as i32)
+                protocol.write_i32(*self as i32)
             }
         }
 
         impl $crate::protocol::Decode for $name {
-            fn decode<P, T>(protocol: &mut P, transport: &mut T) -> $crate::Result<Self>
-            where P: $crate::Protocol, T: $crate::Transport {
-                Ok(try!($crate::protocol::helpers::read_enum(protocol, transport)))
+            fn decode<P>(protocol: &mut P) -> $crate::Result<Self>
+            where P: $crate::Protocol {
+                Ok(try!($crate::protocol::helpers::read_enum(protocol)))
             }
         }
     }
