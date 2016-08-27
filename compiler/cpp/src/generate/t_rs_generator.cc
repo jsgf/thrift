@@ -475,28 +475,27 @@ void t_rs_generator::generate_service_methods(t_service* tservice) {
     vector<t_function*>::const_iterator f_iter;
     for (f_iter = functions.begin(); f_iter != functions.end(); ++f_iter) {
         t_function* tfunction = *f_iter;
-        const string argname = pascalcase(tfunction->get_name()) + "Args";
-        string resname = pascalcase(tfunction->get_name()) + "Result";
         string exnname = pascalcase(tfunction->get_name()) + "Exn";
 
-        if (tfunction->is_oneway()) {
-          resname = "oneway";
-          exnname = "oneway";
-        }
-
-        indent(f_mod_) << argname << " -> " << resname << " " << exnname << " = "
-          << tfunction->get_name() << "(\n";
+        indent(f_mod_) << tfunction->get_name() << "(\n";
 
         indent_up();
         generate_service_method_arglist(tfunction->get_arglist()->get_members(), false);
         indent_down();
 
-        indent(f_mod_) << ") -> " << render_rs_type(tfunction->get_returntype()) << ", ";
+        indent(f_mod_) << ") -> ";
 
-        if (tfunction->get_xceptions()->get_members().size() == 0)
-          f_mod_ << render_rs_type(tfunction->get_returntype());
-        else
-          f_mod_ << "::std::result::Result<" << render_rs_type(tfunction->get_returntype()) << ", " << exnname << "> ";
+        if (tfunction->is_oneway()) {
+          f_mod_ << "oneway, oneway, oneway";
+        } else {
+          f_mod_ << render_rs_type(tfunction->get_returntype()) << ", ";
+
+          if (tfunction->get_xceptions()->get_members().size() == 0)
+            f_mod_ << render_rs_type(tfunction->get_returntype());
+          else
+            f_mod_ << "::std::result::Result<" << render_rs_type(tfunction->get_returntype()) << ", " << exnname << ">";
+          f_mod_ << ", " << exnname;
+        }
         f_mod_  << " => [\n";
 
         indent_up();

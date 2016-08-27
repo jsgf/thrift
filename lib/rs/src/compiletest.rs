@@ -80,8 +80,8 @@ service! {
     name = shared_service,
     trait_name = SharedService,
     service_methods = [
-        GetStructArgs -> GetStructResult GetStructExn = get_struct(key: i32 => 1,) -> DeeplyNested, DeeplyNested => [],
-        OnewayArgs -> OnewayResult OnewayExn = oneway(thing: i32 => 1,) -> (), () => [],
+        get_struct(key: i32 => 1,) -> DeeplyNested, DeeplyNested, GetStructExn => [],
+        do_oneway(thing: i32 => 1,) -> oneway, oneway, oneway => [],
     ],
     parent = []
 }
@@ -96,17 +96,17 @@ impl SharedService for Arc<Mutex<TestCtxt>> {
         *v += key;
         common::DeeplyNested::default()
     }
-    fn oneway(&mut self, _thing: i32) -> () { unimplemented!() }
+    fn do_oneway(&mut self, _thing: i32) -> () { unimplemented!() }
 }
 
 service! {
      name = child_service,
      trait_name = ChildService,
      service_methods = [
-         OperationArgs -> OperationResult OperationExn = operation(
+         operation(
              one: String => 2,
              another: i32 => 3,
-         ) -> Operation, Operation => [],
+         ) -> Operation, Operation, OperationExn => [],
      ],
      parent = [ shared_service: SharedService ]
 }
@@ -115,7 +115,7 @@ service! {
     name = service_with_exception,
     trait_name = ServiceWithException,
     service_methods = [
-        OperationArgs -> OperationResult OperationExn = operation() -> i32, ::std::result::Result<i32, OperationExn> => [bad Bad: Exception => 1,],
+        operation() -> i32, ::std::result::Result<i32, OperationExn>, OperationExn => [bad Bad: Exception => 1,],
     ],
     parent = []
 }
