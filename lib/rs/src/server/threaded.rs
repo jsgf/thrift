@@ -17,103 +17,88 @@
  * under the License.
  */
 
-use std::sync::{Arc, mpsc};
-use std::thread;
+use std::sync::{Arc, Mutex};
+use std::collections::HashMap;
+
+use threadpool::ThreadPool;
 
 use transport::server::TransportServer;
-use transport::Transport;
-use protocol::ProtocolFactory;
+use protocol::{Protocol, ProtocolFactory};
 use processor::Processor;
+use server::{Server, Service};
 
-pub struct ThreadedServer<P, PF, TS> {
-    inner: Arc<ThreadedServerInner<P, PF, TS>>
-}
-
-struct ThreadedServerInner<P, PF, TS> {
-    processor: P,
+pub struct ThreadedServer<PF, TS>
+    where PF: ProtocolFactory<TS::Transport>,
+          TS: TransportServer,
+          PF::Protocol: Send + 'static
+{
+    inner: Arc<Mutex<ThreadedServerInner<PF, TS>>>,
+    pool: ThreadPool,
     protocol_factory: PF,
     transport_server: TS
 }
 
-impl<P, PF, TS> ThreadedServer<P, PF, TS>
-where P: Processor<PF::Protocol, TS::Transport> + Send + Sync + 'static,
-      TS: TransportServer + Send + Sync + 'static,
-      PF: ProtocolFactory + Send + Sync + 'static,
-      // FIXME(reem): This bound is redundant but is needed to get around an ICE
-      // in 1.0 stable.
-      TS::Transport: Transport {
+struct ThreadedServerInner<PF, TS>
+    where PF: ProtocolFactory<TS::Transport>,
+          TS: TransportServer,
+          PF::Protocol: Send + 'static
+{
+    processors: HashMap<&'static str, Box<Processor<PF::Protocol> + 'static + Send>>,
+}
 
-    pub fn new(processor: P, factory: PF, server: TS) -> Self {
+impl<PF, TS> ThreadedServer<PF, TS>
+where TS: TransportServer + 'static,
+      PF: ProtocolFactory<TS::Transport> + 'static,
+      PF::Protocol: Send + 'static
+{
+    pub fn new(server: TS, factory: PF, threads: usize) -> Self {
         ThreadedServer {
-            inner: Arc::new(ThreadedServerInner {
-                processor: processor,
-                protocol_factory: factory,
-                transport_server: server
+            protocol_factory: factory,
+            transport_server: server,
+            pool: ThreadPool::new(threads),
+            inner: Arc::new(Mutex::new(ThreadedServerInner {
+                processors: HashMap::new(),
+            })),
+        }
+    }
+}
+
+impl<PF, TS> Server for ThreadedServer<PF, TS>
+where TS: TransportServer + 'static,
+      PF: ProtocolFactory<TS::Transport> + 'static,
+      PF::Protocol: Send + 'static
+{
+    fn serve(&mut self) {
+        loop {
+            let transport = self.transport_server.accept().expect("Accept failed");
+            let mut protocol = self.protocol_factory.new_protocol(transport);
+            let processors = self.inner.clone();
+
+            self.pool.execute(move || {
+                loop {
+                    match protocol.read_message_begin() {
+                        Ok((name, _ty, id)) => {
+                            let mut inner = processors.lock().expect("lock");
+                            match inner.processors.get_mut(&name[..]) {
+                                Some(mut p) => { let _ = p.process(&mut protocol, id); },
+                                None => { println!("unknown method {}", name); /* XXX read rest */ }
+                            }
+                        },
+                        Err(err) => { println!("read failed: {:?}", err); break },
+                    }
+                }
             })
         }
     }
-
-    pub fn serve(self, threads: usize) {
-        assert!(threads != 0, "Can't accept on 0 threads.");
-
-        let (supervisor_tx, supervisor_rx) = mpsc::channel();
-
-        for _ in 0..threads {
-            self.spawn_with_supervisor(supervisor_tx.clone());
-        }
-
-        // Instead of holding on to this for future calls to
-        // spawn_with_supervisor, we drop it here so the only
-        // sending handles are those in worker threads.
-        //
-        // This means the loop over supervisor_rx will terminate
-        // when all worker threads have completed succesfully.
-        drop(supervisor_tx);
-
-        for PanicMessage(supervisor_tx) in supervisor_rx.iter() {
-            self.spawn_with_supervisor(supervisor_tx.clone());
-        }
-    }
-
-    fn spawn_with_supervisor(&self, supervisor: mpsc::Sender<PanicMessage>) {
-        let shared = self.inner.clone();
-
-        thread::spawn(move || {
-            let _sentinel =
-                Sentinel::new(supervisor.clone(), PanicMessage(supervisor));
-
-            loop {
-                let mut transport = shared.transport_server.accept().unwrap();
-                let mut protocol = shared.protocol_factory.new_protocol();
-
-                while let Ok(_) =
-                    shared.processor.process(&mut protocol, &mut transport) { }
-            }
-        });
-    }
 }
 
-struct PanicMessage(mpsc::Sender<PanicMessage>);
-
-struct Sentinel<T: Send + 'static> {
-    value: Option<T>,
-    supervisor: mpsc::Sender<T>,
-}
-
-impl<T: Send + 'static> Sentinel<T> {
-    fn new(channel: mpsc::Sender<T>, data: T) -> Sentinel<T> {
-        Sentinel {
-            value: Some(data),
-            supervisor: channel,
-        }
+impl<PF, TS> Service<PF::Protocol> for ThreadedServer<PF, TS>
+    where PF: ProtocolFactory<TS::Transport>,
+          TS: TransportServer,
+          PF::Protocol: Send
+{
+    fn register(&mut self, name: &'static str, processor: Box<Processor<PF::Protocol> + Send + 'static>) {
+        let mut processors = self.inner.lock().expect("lock");
+        let _ = processors.processors.insert(name, processor);
     }
 }
-
-impl<T: Send + 'static> Drop for Sentinel<T> {
-    fn drop(&mut self) {
-        // Ignore failure of the supervisor thread so as to avoid double panics
-        // due to supervisor failure followed by child failure.
-        let _ = self.supervisor.send(self.value.take().unwrap());
-    }
-}
-

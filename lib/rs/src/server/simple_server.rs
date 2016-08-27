@@ -17,34 +17,60 @@
  * under the License.
  */
 
+use std::collections::HashMap;
 use transport::server::TransportServer;
 use transport::Transport;
-use protocol::ProtocolFactory;
+use protocol::{ProtocolFactory, Protocol};
 use processor::Processor;
+use server::{Server, Service};
 
-pub struct SimpleServer<P, PF, TS> {
-    processor: P,
+pub struct SimpleServer<PF, TS>
+    where PF: ProtocolFactory<TS::Transport>, TS: TransportServer
+{
     protocol_factory: PF,
     transport_server: TS,
+
+    processors: HashMap<&'static str, Box<Processor<PF::Protocol>>>,
 }
 
-impl<P, PF: ProtocolFactory, TS: TransportServer> SimpleServer<P, PF, TS>
-where P: Processor<PF::Protocol, TS::Transport>,
-      TS::Transport: Transport {
+impl<PF: ProtocolFactory<TS::Transport>, TS: TransportServer> SimpleServer<PF, TS>
+    where TS::Transport: Transport {
 
-    pub fn new(processor: P, transport_server: TS, pf: PF) -> Self {
+    pub fn new(transport_server: TS, pf: PF) -> Self {
         SimpleServer {
-            processor: processor,
+            processors: HashMap::new(),
             protocol_factory: pf,
             transport_server: transport_server
         }
     }
+}
 
-    pub fn serve(&mut self) {
+impl<PF: ProtocolFactory<TS::Transport>, TS: TransportServer> Server for SimpleServer<PF, TS>
+    where TS::Transport: Transport
+{
+    fn serve(&mut self) {
         loop {
-            let mut transport = self.transport_server.accept().unwrap();
-            let mut protocol = self.protocol_factory.new_protocol();
-            while let Ok(_) = self.processor.process(&mut protocol, &mut transport) { }
+            let transport = self.transport_server.accept().unwrap();
+            let mut protocol = self.protocol_factory.new_protocol(transport);
+            loop {
+                match protocol.read_message_begin() {
+                    Ok((name, _ty, id)) => {
+                        match self.processors.get_mut(&name[..]) {
+                            Some(mut p) => { let _ = p.process(&mut protocol, id); },
+                            None => println!("missing method \"{:?}\"", name),
+                        }
+                    },
+                    Err(err) => { println!("Failed: {:?}", err); break },
+                }
+            }
         }
+    }
+}
+
+impl<PF, TS> Service<PF::Protocol> for SimpleServer<PF, TS>
+    where PF: ProtocolFactory<TS::Transport>, TS: TransportServer
+{
+    fn register(&mut self, name: &'static str, processor: Box<Processor<PF::Protocol> + Send + 'static>) {
+        let _ = self.processors.insert(name, processor);
     }
 }

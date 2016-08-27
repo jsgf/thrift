@@ -1,4 +1,5 @@
 extern crate podio;
+extern crate threadpool;
 
 #[macro_use]
 extern crate lazy_static;
@@ -117,16 +118,5 @@ impl<P> Client<P> where P: Protocol {
 
     pub fn decode<D: protocol::Decode>(&mut self) -> Result<D> {
         D::decode(&mut self.protocol)
-    }
-}
-
-pub trait Handler<P: Protocol, T: Transport> {
-    fn handle(&mut self, proto: &mut P, trans: &mut T) -> Result<()>;
-}
-
-pub struct Service<P, T>(P, T);
-impl<P: Protocol, T: Transport> Service<P, T> {
-    pub fn register(&mut self, name: &str, handler: Box<Handler<P, T>>) {
-        unimplemented!()
     }
 }

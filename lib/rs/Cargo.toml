@@ -4,10 +4,12 @@ name = "thrift"
 version = "0.0.1"
 authors = ["Jonathan Reem <jonathan.reem@gmail.com>",
            "Simon Génier <s@simon.coffee>",
-           "Maxim Golov <maxim.golov@gmail.com>"]
+           "Maxim Golov <maxim.golov@gmail.com>",
+           "Jeremy Fitzhardinge <jsgf@fb.com>"]
 
 [dependencies]
 podio = "0.1"
 bufstream = "0.1.2"
 log = "0"
 lazy_static = "0.2"
+threadpool = "1.3"

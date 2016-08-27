@@ -22,3 +22,14 @@ pub mod threaded;
 
 pub use self::simple_server::SimpleServer;
 pub use self::threaded::ThreadedServer;
+
+use processor::Processor;
+use protocol::Protocol;
+
+pub trait Service<P: Protocol> {
+    fn register(&mut self, name: &'static str, process: Box<Processor<P> + Send + 'static>);
+}
+
+pub trait Server {
+    fn serve(&mut self);
+}

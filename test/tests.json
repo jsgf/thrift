@@ -557,6 +557,20 @@
         "target/debug/test_client"
       ]
     },
+    "server": {
+      "transports": [
+        "buffered"
+      ],
+      "sockets": [
+        "ip"
+      ],
+      "protocols": [
+        "binary"
+      ],
+      "command": [
+        "target/debug/test_server"
+      ]
+    },
     "workdir": "rs"
   }
 ]

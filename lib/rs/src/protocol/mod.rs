@@ -60,17 +60,20 @@ impl From<str::Utf8Error> for Error {
     }
 }
 
-pub trait ProtocolFactory {
+use transport::Transport;
+pub trait ProtocolFactory<T: Transport> {
     type Protocol: Protocol;
 
-    fn new_protocol(&self) -> Self::Protocol;
+    fn new_protocol(&self, trans: T) -> Self::Protocol;
 }
 
-impl<F, P: Protocol> ProtocolFactory for F where F: Fn() -> P {
+impl<F, P, T> ProtocolFactory<T> for F
+    where F: Fn(T) -> P, T: Transport, P: Protocol
+{
     type Protocol = P;
 
-    fn new_protocol(&self) -> P {
-        (*self)()
+    fn new_protocol(&self, trans: T) -> Self::Protocol {
+        (*self)(trans)
     }
 }
 
@@ -245,12 +248,10 @@ pub mod helpers {
         }
     }
 
-    pub fn send<W, P>(protocol: &mut P,
-                         name: &str, _type: MessageType,
-                         args: &W) -> Result<()>
+    pub fn send<W, P>(protocol: &mut P, name: &str, ty: MessageType,
+                      cseqid: i32, args: &W) -> Result<()>
     where W: Encode, P: Protocol {
-        let cseqid: i32 = 0;    // XXX TODO FIXME
-        try!(protocol.write_message_begin(name, _type, cseqid));
+        try!(protocol.write_message_begin(name, ty, cseqid));
         try!(args.encode(protocol));
         try!(protocol.write_message_end());
         try!(protocol.flush());

@@ -117,16 +117,21 @@ macro_rules! service_handler {
 
         let args = try!(Args::decode($proto));
         let ret = $ctxt.$smname( $(args.$saname.unwrap_or_else(|| Default::default())),*);
+
+        let mut rettype = MessageType::Reply;
         let ret = match ret {
             Ok(v) => Return { success: Some(v), ..Default::default() },
             Err(exn) => {
                 match exn {
                     $($sername :: $sefname(exn) => Return { $sename: Some(exn), ..Default::default() },)*
-                    exn @ $sername :: Unknown => panic!("unknown exn {:?}", exn),
+                    exn @ $sername :: Unknown => {
+                        rettype = MessageType::Exception;
+                        Return::default()
+                    }
                 }
             }
         };
-        try!(helpers::send($proto, stringify!($smname), MessageType::Reply, $seq, &ret));
+        try!(helpers::send($proto, stringify!($smname), rettype, $seq, &ret));
         Ok(())
     };
 }
@@ -141,10 +146,10 @@ macro_rules! service_processor {
          )*
      ],
      parent = [ $($pmod:ident: $pservice:ident)* ]) => {
-         use $crate::{Handler, Service};
-         use $crate::protocol::{Decode, Protocol};
-         use $crate::transport::Transport;
-         $(use super::super::$pmod :: processor :: $pservice;)*
+        use $crate::server::Service;
+        use $crate::processor::Processor;
+        use $crate::protocol::{Decode, Protocol};
+        $(use super::super::$pmod :: processor :: $pservice;)*
         pub trait $name: $($pservice)* {
             $( service_trait_method! {
                 $smname( $($saname: $saty => $said,)* ) -> $srty, $sername =>
@@ -158,16 +163,16 @@ macro_rules! service_processor {
         )*
 
         #[allow(unused_variables, unused_imports)]
-        pub fn register<Ctxt: $name + Clone + 'static, P: Protocol, T: Transport>(svc: &mut Service<P, T>, ctxt: &Ctxt) {
+        pub fn register<Ctxt: $name + Clone + Send + 'static, P: Protocol>(svc: &mut Service<P>, ctxt: &Ctxt) {
             $(
                 use super::super::$pmod:: processor as parent;
                 parent::register(svc, ctxt);
             )*
             $(
                 {
-                    struct MethodHandler<Ctxt>(Ctxt);
-                    impl<Ctxt: $name, P: Protocol> Handler<P> for MethodHandler<Ctxt> {
-                        fn handle(&mut self, proto: &mut P, seq: i32) -> $crate::Result<()> {
+                    struct MethodProcessor<Ctxt>(Ctxt);
+                    impl<Ctxt: $name, P: Protocol> Processor<P> for MethodProcessor<Ctxt> {
+                        fn process(&mut self, proto: &mut P, seq: i32) -> $crate::Result<()> {
                             use $crate::protocol::{Encode, MessageType, helpers};
 
                             // args
@@ -185,7 +190,7 @@ macro_rules! service_processor {
                             }
                         }
                     }
-                    svc.register(stringify!($smname), Box::new(MethodHandler(ctxt.clone())));
+                    svc.register(stringify!($smname), Box::new(MethodProcessor(ctxt.clone())));
                 }
             )*
         }

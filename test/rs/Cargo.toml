@@ -9,6 +9,10 @@ build = "build.rs"
 name = "test_client"
 path = "src/test_client.rs"
 
+[[bin]]
+name = "test_server"
+path = "src/test_server.rs"
+
 [dependencies.thrift]
 path = "../../lib/rs"
 
