@@ -182,6 +182,14 @@ void t_rs_generator::generate_program() {
   indent(f_mod_) << "pub mod common {\n";
   indent_up();
 
+  if (gen_btree_mapset_) {
+    indent(f_mod_) << "pub use ::std::collections::BTreeMap as Map;\n";
+    indent(f_mod_) << "pub use ::std::collections::BTreeSet as Set;\n";
+  } else {
+    indent(f_mod_) << "pub use ::std::collections::HashMap as Map;\n";
+    indent(f_mod_) << "pub use ::std::collections::HashSet as Set;\n";
+  }
+
   // Generate enums
   vector<t_enum*> enums = program_->get_enums();
   vector<t_enum*>::iterator en_iter;
@@ -746,23 +754,13 @@ string t_rs_generator::render_rs_type(t_type* type, bool ref) {
   } else if (type->is_map()) {
     t_type* ktype = ((t_map*)type)->get_key_type();
     t_type* vtype = ((t_map*)type)->get_val_type();
-    string maptype;
-    if (gen_btree_mapset_)
-      maptype = "BTreeMap";
-    else
-      maptype = "HashMap";
 
-    return "::std::collections::" + maptype + "<" + render_rs_type(ktype, ref) + ", " + render_rs_type(vtype, ref) + ">";
+    return "Map<" + render_rs_type(ktype, ref) + ", " + render_rs_type(vtype, ref) + ">";
 
   } else if (type->is_set()) {
     t_type* etype = ((t_set*)type)->get_elem_type();
-    string settype;
-    if (gen_btree_mapset_)
-      settype = "BTreeSet";
-    else
-      settype = "HashSet";
 
-    return "::std::collections::" + settype + "<" + render_rs_type(etype, ref) + ">";
+    return "Set<" + render_rs_type(etype, ref) + ">";
 
   } else if (type->is_list()) {
     t_type* etype = ((t_list*)type)->get_elem_type();

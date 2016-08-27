@@ -24,8 +24,6 @@ extern crate getopts;
 use getopts::Options;
 use std::env;
 
-use std::collections::{BTreeMap, BTreeSet};
-
 use std::net::TcpStream;
 use bufstream::BufStream;
 use thrift::protocol::binary_protocol::BinaryProtocol;
@@ -37,10 +35,10 @@ use thrift_test::thrift_test::client::*;
 use thrift_test::common::Numberz::*;
 
 macro_rules! map {
-    () => { BTreeMap::new() };
+    () => { Map::new() };
     ( $($key:expr => $val:expr ),* $(,)* ) => {
         {
-            let mut map = BTreeMap::new();
+            let mut map = Map::new();
             $( map.insert($key.into(), $val.into()); )+
             map
         }
@@ -263,7 +261,7 @@ fn main() {
     }
 
     {
-        let mut map = BTreeMap::new();
+        let mut map = Map::new();
         for i in 0..5 {
             let _ = map.insert(i, i - 10);
         }
@@ -276,7 +274,7 @@ fn main() {
     }
 
     {
-        let mut set = BTreeSet::new();
+        let mut set = Set::new();
         for i in -3..10 {
             let _ = set.insert(i);
         }
