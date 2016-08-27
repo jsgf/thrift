@@ -357,10 +357,10 @@ macro_rules! service_client_method {
             match ty {
                 MessageType::Reply => (),
                 MessageType::Exception => return Err($crate::Error::from(Error::UserException)),
-                _ => return Err($crate::Error::from(Error::ProtocolViolation)),
+                _ => return Err($crate::Error::from(Error::ProtocolViolation("result msgtype"))),
             }
             if name != MNAME || seq != id {
-                return Err($crate::Error::from(Error::ProtocolViolation));
+                return Err($crate::Error::from(Error::ProtocolViolation("result name/seq")));
             }
 
             let result = service_client_result!(
@@ -403,10 +403,10 @@ macro_rules! service_client_method {
             match ty {
                 MessageType::Reply => (),
                 MessageType::Exception => return Err($crate::Error::from(Error::UserException)),
-                _ => return Err($crate::Error::from(Error::ProtocolViolation)),
+                _ => return Err($crate::Error::from(Error::ProtocolViolation("exn result msgtype"))),
             }
             if name != MNAME || seq != id {
-                return Err($crate::Error::from(Error::ProtocolViolation));
+                return Err($crate::Error::from(Error::ProtocolViolation("exn result name/seq")));
             }
 
             let result = service_client_result!(

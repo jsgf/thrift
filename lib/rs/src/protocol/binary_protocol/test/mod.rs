@@ -187,7 +187,7 @@ fn read_message_begin_invalid_message_type() {
     let mut protocol = BinaryProtocol;
     let err = protocol.read_message_begin(transport).unwrap_err();
     match err {
-        Error::ProtocolError(e) => assert_eq!(e, protocol::Error::ProtocolViolation),
+        Error::ProtocolError(e) => assert_eq!(e, protocol::Error::ProtocolViolation("protocol err")),
         e => panic!("Expected a protocol error, got {:?}", e)
     }
 }

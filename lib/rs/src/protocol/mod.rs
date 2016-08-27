@@ -28,7 +28,7 @@ pub enum Error {
     /// Protocol version mismatch
     BadVersion,
     /// Sender violated the protocol, for instance, sent an unknown enum value
-    ProtocolViolation,
+    ProtocolViolation(&'static str),
     /// Sender sent a user exception the receiver wasn't expecting any exceptions
     UserException,
     /// Received string cannot be converted to a UTF8 string
@@ -241,7 +241,7 @@ pub mod helpers {
         let i = try!(iprot.read_i32());
         match <F as FromNum>::from_num(i) {
             Some(v) => Ok(v),
-            None => Err(::Error::from(Error::ProtocolViolation)),
+            None => Err(::Error::from(Error::ProtocolViolation("read enum helper"))),
         }
     }
 
@@ -291,7 +291,7 @@ pub mod helpers {
                     // FIXME: shall we err in this case?
                     try!(protocol.skip(Type::Struct));
                     try!(protocol.read_message_end());
-                    Err(::Error::from(Error::ProtocolViolation))
+                    Err(::Error::from(Error::ProtocolViolation("name mismatch")))
                 }
             }
         }

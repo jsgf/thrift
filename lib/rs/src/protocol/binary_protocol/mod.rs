@@ -39,7 +39,7 @@ impl<T: Transport> BinaryProtocol<T> {
         let raw = try!(self.read_byte());
         match Type::from_num(raw as u64) {
             Some(type_) => Ok(type_),
-            None => Err(Error::from(protocol::Error::ProtocolViolation)),
+            None => Err(Error::from(protocol::Error::ProtocolViolation("read type failed"))),
         }
     }
 }
@@ -167,7 +167,10 @@ impl<T: Transport> Protocol for BinaryProtocol<T> {
         let raw_type = header & 0xff;
         let message_type = match MessageType::from_num(raw_type as u64) {
             Some(t) => t,
-            None => return Err(Error::from(protocol::Error::ProtocolViolation)),
+            None => {
+                println!("failed to read message begin raw_type {}", raw_type);
+                return Err(Error::from(protocol::Error::ProtocolViolation("message begin type")))
+            },
         };
         let sequence_id = try!(self.read_i32());
         Ok((name, message_type, sequence_id))

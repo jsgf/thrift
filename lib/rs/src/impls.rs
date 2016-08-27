@@ -166,7 +166,7 @@ impl<X: Decode> Decode for Vec<X> {
             try!(protocol.read_list_end());
             Ok(ret)
         } else {
-            Err(Error::from(protocol::Error::ProtocolViolation))
+            Err(Error::from(protocol::Error::ProtocolViolation("vec decode type")))
         }
     }
 }
@@ -182,7 +182,7 @@ impl<X: Decode + Eq + Hash> Decode for HashSet<X> {
             try!(protocol.read_set_end());
             Ok(ret)
         } else {
-            Err(Error::from(protocol::Error::ProtocolViolation))
+            Err(Error::from(protocol::Error::ProtocolViolation("hashset decode type")))
         }
     }
 }
@@ -198,7 +198,7 @@ impl<X: Decode + Ord + Hash> Decode for BTreeSet<X> {
             try!(protocol.read_set_end());
             Ok(ret)
         } else {
-            Err(Error::from(protocol::Error::ProtocolViolation))
+            Err(Error::from(protocol::Error::ProtocolViolation("btreeset decode type")))
         }
     }
 }
@@ -219,7 +219,7 @@ impl<K: Decode + Eq + Hash, V: Decode> Decode for HashMap<K, V> {
             try!(protocol.read_map_end());
             Ok(ret)
         } else {
-            Err(Error::from(protocol::Error::ProtocolViolation))
+            Err(Error::from(protocol::Error::ProtocolViolation("hashmap decode type")))
         }
     }
 }
@@ -240,7 +240,7 @@ impl<K: Decode + Ord + Hash, V: Decode> Decode for BTreeMap<K, V> {
             try!(protocol.read_map_end());
             Ok(ret)
         } else {
-            Err(Error::from(protocol::Error::ProtocolViolation))
+            Err(Error::from(protocol::Error::ProtocolViolation("btreemap decode type")))
         }
     }
 }
