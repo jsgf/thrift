@@ -26,34 +26,34 @@ use Error;
 #[test]
 fn read_bool() {
     let transport = &mut MockTransport::new(vec!(0x00, 0x01, 0xff));
-    let mut protocol = BinaryProtocol;
-    assert_eq!(protocol.read_bool(transport).unwrap(), false);
-    assert_eq!(protocol.read_bool(transport).unwrap(), true);
-    assert_eq!(protocol.read_bool(transport).unwrap(), true);
+    let mut protocol = BinaryProtocol::new(transport);
+    assert_eq!(protocol.read_bool().unwrap(), false);
+    assert_eq!(protocol.read_bool().unwrap(), true);
+    assert_eq!(protocol.read_bool().unwrap(), true);
 }
 
 #[test]
 fn read_byte() {
     let transport = &mut MockTransport::new(vec!(0xa4, 0x27));
-    let mut protocol = BinaryProtocol;
-    assert_eq!(protocol.read_byte(transport).unwrap(), -0x5c);
-    assert_eq!(protocol.read_byte(transport).unwrap(), 0x27);
+    let mut protocol = BinaryProtocol::new(transport);
+    assert_eq!(protocol.read_byte().unwrap(), -0x5c);
+    assert_eq!(protocol.read_byte().unwrap(), 0x27);
 }
 
 #[test]
 fn read_i16() {
     let transport = &mut MockTransport::new(vec!(0xf2, 0xf8, 0xa1, 0x40));
-    let mut protocol = BinaryProtocol;
-    assert_eq!(protocol.read_i16(transport).unwrap(), -0x0d08);
-    assert_eq!(protocol.read_i16(transport).unwrap(), -0x5ec0);
+    let mut protocol = BinaryProtocol::new(transport);
+    assert_eq!(protocol.read_i16().unwrap(), -0x0d08);
+    assert_eq!(protocol.read_i16().unwrap(), -0x5ec0);
 }
 
 #[test]
 fn read_i32() {
     let transport = &mut MockTransport::new(vec!(0x27, 0xd0, 0x39, 0x49, 0xe5, 0xd8, 0xfe, 0x8b));
-    let mut protocol = BinaryProtocol;
-    assert_eq!(protocol.read_i32(transport).unwrap(), 0x27d03949);
-    assert_eq!(protocol.read_i32(transport).unwrap(), -0x1a270175);
+    let mut protocol = BinaryProtocol::new(transport);
+    assert_eq!(protocol.read_i32().unwrap(), 0x27d03949);
+    assert_eq!(protocol.read_i32().unwrap(), -0x1a270175);
 }
 
 #[test]
@@ -62,9 +62,9 @@ fn read_i64() {
         0x27, 0xd0, 0x39, 0x49, 0xe5, 0xd8, 0xfe, 0x8b,
         0xa7, 0x2e, 0x82, 0xea, 0xd1, 0x28, 0x0b, 0xe2,
     ));
-    let mut protocol = BinaryProtocol;
-    assert_eq!(protocol.read_i64(transport).unwrap(), 0x27d03949e5d8fe8b);
-    assert_eq!(protocol.read_i64(transport).unwrap(), -0x58d17d152ed7f41e);
+    let mut protocol = BinaryProtocol::new(transport);
+    assert_eq!(protocol.read_i64().unwrap(), 0x27d03949e5d8fe8b);
+    assert_eq!(protocol.read_i64().unwrap(), -0x58d17d152ed7f41e);
 }
 
 #[test]
@@ -73,9 +73,9 @@ fn read_double() {
         0x40, 0xa9, 0x5e, 0xaf, 0x39, 0x4b, 0x7b, 0x29,
         0xbf, 0xe9, 0x3a, 0xe4, 0x21, 0xd3, 0x0e, 0x85,
     ));
-    let mut protocol = BinaryProtocol;
-    assert_eq!(protocol.read_double(transport).unwrap(), 3247.342234);
-    assert_eq!(protocol.read_double(transport).unwrap(), -0.78843886);
+    let mut protocol = BinaryProtocol::new(transport);
+    assert_eq!(protocol.read_double().unwrap(), 3247.342234);
+    assert_eq!(protocol.read_double().unwrap(), -0.78843886);
 }
 
 #[test]
@@ -85,10 +85,10 @@ fn read_string() {
         0x00, 0x00, 0x00, 0x04, 0x41, 0x73, 0x64, 0x66,
         0x00, 0x00, 0x00, 0x0d, 0x48, 0x65, 0x6c, 0x6c, 0x6f, 0x2c, 0x20, 0x57, 0x6f, 0x72, 0x6c, 0x64, 0x21,
     ));
-    let mut protocol = BinaryProtocol;
-    assert_eq!(&protocol.read_string(transport).unwrap(), "");
-    assert_eq!(&protocol.read_string(transport).unwrap(), "Asdf");
-    assert_eq!(&protocol.read_string(transport).unwrap(), "Hello, World!");
+    let mut protocol = BinaryProtocol::new(transport);
+    assert_eq!(&protocol.read_string().unwrap(), "");
+    assert_eq!(&protocol.read_string().unwrap(), "Asdf");
+    assert_eq!(&protocol.read_string().unwrap(), "Hello, World!");
 }
 
 #[test]
@@ -98,18 +98,18 @@ fn read_binary() {
         0x00, 0x00, 0x00, 0x04, 0x41, 0x73, 0x64, 0x66,
         0x00, 0x00, 0x00, 0x0d, 0x48, 0x65, 0x6c, 0x6c, 0x6f, 0x2c, 0x20, 0x57, 0x6f, 0x72, 0x6c, 0x64, 0x21,
     ));
-    let mut protocol = BinaryProtocol;
-    assert_eq!(&protocol.read_binary(transport).unwrap(), &[]);
-    assert_eq!(&protocol.read_binary(transport).unwrap(), &[0x41, 0x73, 0x64, 0x66]);
-    assert_eq!(&protocol.read_binary(transport).unwrap(), &[0x48, 0x65, 0x6c, 0x6c, 0x6f, 0x2c, 0x20, 0x57, 0x6f, 0x72, 0x6c, 0x64, 0x21]);
+    let mut protocol = BinaryProtocol::new(transport);
+    assert_eq!(&protocol.read_binary().unwrap(), &[]);
+    assert_eq!(&protocol.read_binary().unwrap(), &[0x41, 0x73, 0x64, 0x66]);
+    assert_eq!(&protocol.read_binary().unwrap(), &[0x48, 0x65, 0x6c, 0x6c, 0x6f, 0x2c, 0x20, 0x57, 0x6f, 0x72, 0x6c, 0x64, 0x21]);
 }
 
 #[test]
 fn read_set_begin() {
     let transport = &mut MockTransport::new(vec!(0x0b, 0x00, 0x00, 0x01, 0x0f));
-    let mut protocol = BinaryProtocol;
+    let mut protocol = BinaryProtocol::new(transport);
     assert_eq!(
-        protocol.read_set_begin(transport).unwrap(),
+        protocol.read_set_begin().unwrap(),
         (protocol::Type::String, 0x0000010f)
     );
 }
@@ -117,9 +117,9 @@ fn read_set_begin() {
 #[test]
 fn read_list_begin() {
     let transport = &mut MockTransport::new(vec!(0x0b, 0x00, 0x00, 0x01, 0x0f));
-    let mut protocol = BinaryProtocol;
+    let mut protocol = BinaryProtocol::new(transport);
     assert_eq!(
-        protocol.read_list_begin(transport).unwrap(),
+        protocol.read_list_begin().unwrap(),
         (protocol::Type::String, 0x0000010f)
     );
 }
@@ -127,9 +127,9 @@ fn read_list_begin() {
 #[test]
 fn read_map_begin() {
     let transport = &mut MockTransport::new(vec!(0x0b, 0x08, 0x00, 0x00, 0x01, 0x0f));
-    let mut protocol = BinaryProtocol;
+    let mut protocol = BinaryProtocol::new(transport);
     assert_eq!(
-        protocol.read_map_begin(transport).unwrap(),
+        protocol.read_map_begin().unwrap(),
         (protocol::Type::String, protocol::Type::I32, 0x0000010f)
     );
 }
@@ -137,13 +137,13 @@ fn read_map_begin() {
 #[test]
 fn read_field_begin() {
     let transport = &mut MockTransport::new(vec!(0x00, 0x0d, 0x14, 0x0e));
-    let mut protocol = BinaryProtocol;
+    let mut protocol = BinaryProtocol::new(transport);
     assert_eq!(
-        protocol.read_field_begin(transport).unwrap(),
+        protocol.read_field_begin().unwrap(),
         ("".to_string(), protocol::Type::Stop, 0)
     );
     assert_eq!(
-        protocol.read_field_begin(transport).unwrap(),
+        protocol.read_field_begin().unwrap(),
         ("".to_string(), protocol::Type::Map, 0x140e)
   );
 }
@@ -155,9 +155,9 @@ fn read_message_begin() {
         0x00, 0x00, 0x00, 0x03, 0x66, 0x6f, 0x6f,
         0x00, 0x02, 0x47, 0x1e
     ));
-    let mut protocol = BinaryProtocol;
+    let mut protocol = BinaryProtocol::new(transport);
     assert_eq!(
-        protocol.read_message_begin(transport).unwrap(),
+        protocol.read_message_begin().unwrap(),
         ("foo".to_string(), protocol::MessageType::Call, 0x0002471e)
     );
 }
@@ -169,8 +169,8 @@ fn read_message_begin_bad_version() {
         0x00, 0x00, 0x00, 0x03, 0x66, 0x6f, 0x6f,
         0x00, 0x02, 0x47, 0x1e
     ));
-    let mut protocol = BinaryProtocol;
-    let err = protocol.read_message_begin(transport).unwrap_err();
+    let mut protocol = BinaryProtocol::new(transport);
+    let err = protocol.read_message_begin().unwrap_err();
     match err {
         Error::ProtocolError(e) => assert_eq!(e, protocol::Error::BadVersion),
         e => panic!("Expected a protocol error, got {:?}", e)
@@ -184,10 +184,10 @@ fn read_message_begin_invalid_message_type() {
         0x00, 0x00, 0x00, 0x03, 0x66, 0x6f, 0x6f,
         0x00, 0x02, 0x47, 0x1e
     ));
-    let mut protocol = BinaryProtocol;
-    let err = protocol.read_message_begin(transport).unwrap_err();
+    let mut protocol = BinaryProtocol::new(transport);
+    let err = protocol.read_message_begin().unwrap_err();
     match err {
-        Error::ProtocolError(e) => assert_eq!(e, protocol::Error::ProtocolViolation("protocol err")),
+        Error::ProtocolError(e) => assert_eq!(e, protocol::Error::ProtocolViolation("message begin type")),
         e => panic!("Expected a protocol error, got {:?}", e)
     }
 }
