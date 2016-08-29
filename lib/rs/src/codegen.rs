@@ -198,42 +198,6 @@ macro_rules! service_processor {
 }
 
 #[macro_export]
-macro_rules! service_processor_method {
-    (method =
-        $iname:ident -> oneway = $fname:ident.$mname:ident($($aname:ident: $aty:ty => $aid:expr,)*) -> () => [$($ename:ident $efname:ident : $ety:ty => $eid:expr,)*] ) => {
-        fn $mname<P: $crate::Protocol>(&self, prot: &mut P, ty: $crate::protocol::MessageType, id: i32) -> $crate::Result<()> {
-            use $crate::protocol::{MessageType, helpers};
-            static MNAME: &'static str = stringify!($mname);
-
-            let mut args = $iname::default();
-            try!(helpers::receive_body(prot, MNAME, &mut args, MNAME, ty, id));
-
-            // TODO: Further investigate this unwrap.
-            self.$fname.$mname($(args.$aname.unwrap_or_else(|| Default::default())),*);
-            Ok(())
-        }
-    };
-    (method =
-        $iname:ident -> $oname:ident = $fname:ident.$mname:ident($($aname:ident: $aty:ty => $aid:expr,)*) -> $rty:ty => [$($ename:ident $efname:ident : $ety:ty => $eid:expr,)*] ) => {
-        fn $mname<P: $crate::Protocol>(&self, prot: &mut P, ty: $crate::protocol::MessageType, id: i32) -> $crate::Result<()> {
-            use $crate::protocol::{MessageType, helpers};
-            static MNAME: &'static str = stringify!($mname);
-
-            let mut args = $iname::default();
-            try!(helpers::receive_body(prot, MNAME, &mut args, MNAME, ty, id));
-
-            // TODO: Further investigate this unwrap.
-            let result = match self.$fname.$mname($(args.$aname.unwrap_or_else(|| Default::default())),*) {
-                Ok(res) => $oname { success: Some(res), ..::std::default::Default::default() },
-                Err(exn) => { assert!(exn.success.is_none()); exn },
-            };
-            try!(helpers::send(prot, MNAME, MessageType::Reply, &result));
-
-            Ok(())
-        }
-    }}
-
-#[macro_export]
 macro_rules! service_client_trait {
     (
         $name:ident ( $( $arg:ident : $aty:ty => $aid:expr,)* ) -> $rty:ty, $resty:ty, oneway =>

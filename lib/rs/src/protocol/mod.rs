@@ -233,12 +233,6 @@ pub mod helpers {
     use protocol::{Protocol, Type, MessageType, FromNum, Decode, Encode, Error};
     use Result;
 
-    #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
-    pub enum AppResult {
-        Success,
-        Exception,
-    }
-
     pub fn read_enum<F, P>(iprot: &mut P) -> Result<F>
     where F: FromNum, P: Protocol {
         let i = try!(iprot.read_i32());
@@ -256,46 +250,6 @@ pub mod helpers {
         try!(protocol.write_message_end());
         try!(protocol.flush());
         Ok(())
-    }
-
-    pub fn receive<R, P>(protocol: &mut P,
-                            op: &str, result: &mut R) -> Result<AppResult>
-    where R: Decode, P: Protocol {
-        let (name, ty, id) = try!(protocol.read_message_begin());
-        receive_body(protocol, op, result, &name, ty, id)
-    }
-
-    pub fn receive_body<R, P>(protocol: &mut P, op: &str,
-                                 result: &mut R, name: &str, ty: MessageType,
-                                 id: i32) -> Result<AppResult>
-    where R: Decode, P: Protocol {
-        match (name, ty, id) {
-            (_, MessageType::Exception, _) => {
-                println!("got exception");
-                // TODO
-                //let x = ApplicationException;
-                //x.read(&mut protocol)
-                //protocol.read_message_end();
-                //protocol.read_end();
-                //throw x
-                Ok(AppResult::Exception)
-            }
-            // TODO: Make sure the client doesn't receive Call messages and that the server
-            // doesn't receive Reply messages
-            (fname, _, _) => {
-                if &fname[..] == op {
-                    *result = try!(R::decode(protocol));
-                    try!(protocol.read_message_end());
-                    Ok(AppResult::Success)
-                 }
-                else {
-                    // FIXME: shall we err in this case?
-                    try!(protocol.skip(Type::Struct));
-                    try!(protocol.read_message_end());
-                    Err(::Error::from(Error::ProtocolViolation("name mismatch")))
-                }
-            }
-        }
     }
 }
 
