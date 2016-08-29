@@ -8,7 +8,7 @@ authors = ["Jonathan Reem <jonathan.reem@gmail.com>",
            "Jeremy Fitzhardinge <jsgf@fb.com>"]
 
 [dependencies]
-podio = "0.1"
+byteorder = "0.5"
 bufstream = "0.1.2"
 log = "0"
 lazy_static = "0.2"

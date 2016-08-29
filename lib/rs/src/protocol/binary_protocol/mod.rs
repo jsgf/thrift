@@ -21,7 +21,7 @@ use protocol::{self, MessageType, Protocol, Type};
 use transport::Transport;
 use {Result, Error};
 
-use podio::{ReadPodExt, WritePodExt, BigEndian};
+use byteorder::{ReadBytesExt, WriteBytesExt, BigEndian};
 
 static BINARY_PROTOCOL_VERSION_1: u16 = 0x8001;
 
