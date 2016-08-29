@@ -145,7 +145,7 @@ pub trait Encode: ThriftTyped {
 }
 
 pub trait Decode: ThriftTyped + Default {
-    fn decode<P>(&mut P) -> Result<Self>
+    fn decode<P>(&mut P) -> Result<(Self, bool)>
         where P: Protocol;
 }
 

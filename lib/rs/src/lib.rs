@@ -116,7 +116,7 @@ impl<P> Client<P> where P: Protocol {
         self.protocol.skip(ty)
     }
 
-    pub fn decode<D: protocol::Decode>(&mut self) -> Result<D> {
+    pub fn decode<D: protocol::Decode>(&mut self) -> Result<(D, bool)> {
         D::decode(&mut self.protocol)
     }
 }
