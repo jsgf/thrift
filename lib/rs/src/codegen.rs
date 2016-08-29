@@ -92,7 +92,7 @@ macro_rules! service_handler {
      seq = $seq:expr,
      $smname:ident($($saname:ident: $saty:ty => $said:expr,)*) -> $srty:ty, $sername:ident =>
                    [ ]) => {
-        strukt! {
+        strukt_def_encode! {
             name = Return, derive = [ Debug ],
             reqfields = { },
             optfields = { success: $srty => 0, default = Default::default(), }
@@ -108,7 +108,7 @@ macro_rules! service_handler {
      seq = $seq:expr,
      $smname:ident($($saname:ident: $saty:ty => $said:expr,)*) -> $srty:ty, $sername:ident =>
                    [ $($sename:ident $sefname:ident : $sety:ty => $seid:expr,)* ]) => {
-        strukt! {
+        strukt_def_encode! {
             name = Return, derive = [ Debug ],
             reqfields = { },
             optfields = { success: $srty => 0, default = Default::default(),
@@ -176,7 +176,7 @@ macro_rules! service_processor {
                             use $crate::protocol::{Encode, MessageType, helpers};
 
                             // args
-                            strukt! {
+                            strukt_def_decode! {
                                 name = Args, derive = [ Debug ],
                                 reqfields = {},
                                 optfields = { $( $saname: $saty => $said, default = Default::default(), )* }
@@ -328,7 +328,7 @@ macro_rules! service_client_method {
             static MNAME: &'static str = stringify!($mname);
 
             // args
-            strukt! { name = Args, derive = [ Debug ],
+            strukt_def_encode! { name = Args, derive = [ Debug ],
                 reqfields = {},
                 optfields = { $( $aname: $aty => $aid, default = Default::default(), )* }
             }
@@ -346,12 +346,12 @@ macro_rules! service_client_method {
             static MNAME: &'static str = stringify!($mname);
 
             // args
-            strukt! { name = Args, derive = [ Debug ],
+            strukt_def_encode! { name = Args, derive = [ Debug ],
                 reqfields = {},
                 optfields = { $( $aname: $aty => $aid, default = Default::default(), )* }
             }
             // results
-            strukt! { name = Return, derive = [ Debug ],
+            strukt_def_decode! { name = Return, derive = [ Debug ],
                 reqfields = { },
                 optfields = { success: $rty => 0, default = Default::default(), }
             }
@@ -391,12 +391,12 @@ macro_rules! service_client_method {
             static MNAME: &'static str = stringify!($mname);
 
             // args
-            strukt! { name = Args, derive = [ Debug ],
+            strukt_def_encode! { name = Args, derive = [ Debug ],
                 reqfields = {},
                 optfields = { $( $aname: $aty => $aid, default = Default::default(), )* }
             }
             // results
-            strukt! { name = Return, derive = [ Debug ],
+            strukt_def_decode! { name = Return, derive = [ Debug ],
                 reqfields = { },
                 optfields = { success: $rty => 0, default = Default::default(),
                             $( $ename: $ety => $eid, default = Default::default(), )* }
@@ -425,7 +425,7 @@ macro_rules! service_client_method {
 }
 
 #[macro_export]
-macro_rules! strukt {
+macro_rules! strukt_define {
     (name = $name:ident,
      derive = [ $( $derive:ident ),* $(,)* ],
      reqfields = { $($reqfield:ident : $reqtype:ty => $reqid:expr, default = $reqdefl:expr, )* },
@@ -448,7 +448,15 @@ macro_rules! strukt {
                 }
             }
         }
+     }
+}
 
+#[macro_export]
+macro_rules! strukt_encode {
+    (name = $name:ident,
+     derive = [ $( $derive:ident ),* $(,)* ],
+     reqfields = { $($reqfield:ident : $reqtype:ty => $reqid:expr, default = $reqdefl:expr, )* },
+     optfields = { $($optfield:ident : $opttype:ty => $optid:expr, default = $optdefl:expr, )* }) => {
         impl $crate::protocol::Encode for $name {
             fn encode<P>(&self, protocol: &mut P) -> $crate::Result<()>
             where P: $crate::Protocol {
@@ -478,7 +486,15 @@ macro_rules! strukt {
                 Ok(())
             }
         }
+     }
+}
 
+#[macro_export]
+macro_rules! strukt_decode {
+    (name = $name:ident,
+     derive = [ $( $derive:ident ),* $(,)* ],
+     reqfields = { $($reqfield:ident : $reqtype:ty => $reqid:expr, default = $reqdefl:expr, )* },
+     optfields = { $($optfield:ident : $opttype:ty => $optid:expr, default = $optdefl:expr, )* }) => {
         #[allow(unused_mut)]
         impl $crate::protocol::Decode for $name {
             fn decode<P>(protocol: &mut P) -> $crate::Result<Self>
@@ -512,6 +528,75 @@ macro_rules! strukt {
             }
         }
     }
+}
+
+#[macro_export]
+macro_rules! strukt_def_encode {
+    (name = $name:ident,
+     derive = [ $( $derive:ident ),* $(,)* ],
+     reqfields = { $($reqfield:ident : $reqtype:ty => $reqid:expr, default = $reqdefl:expr, )* },
+     optfields = { $($optfield:ident : $opttype:ty => $optid:expr, default = $optdefl:expr, )* }) => {
+         strukt_define! {
+             name = $name,
+             derive = [ $( $derive, )* ],
+             reqfields = { $( $reqfield: $reqtype => $reqid, default = $reqdefl, )* },
+             optfields = { $( $optfield: $opttype => $optid, default = $optdefl, )* }
+         }
+         strukt_encode! {
+             name = $name,
+             derive = [ $( $derive, )* ],
+             reqfields = { $( $reqfield: $reqtype => $reqid, default = $reqdefl, )* },
+             optfields = { $( $optfield: $opttype => $optid, default = $optdefl, )* }
+         }
+     }
+}
+
+#[macro_export]
+macro_rules! strukt_def_decode {
+    (name = $name:ident,
+     derive = [ $( $derive:ident ),* $(,)* ],
+     reqfields = { $($reqfield:ident : $reqtype:ty => $reqid:expr, default = $reqdefl:expr, )* },
+     optfields = { $($optfield:ident : $opttype:ty => $optid:expr, default = $optdefl:expr, )* }) => {
+         strukt_define! {
+             name = $name,
+             derive = [ $( $derive, )* ],
+             reqfields = { $( $reqfield: $reqtype => $reqid, default = $reqdefl, )* },
+             optfields = { $( $optfield: $opttype => $optid, default = $optdefl, )* }
+         }
+         strukt_decode! {
+             name = $name,
+             derive = [ $( $derive, )* ],
+             reqfields = { $( $reqfield: $reqtype => $reqid, default = $reqdefl, )* },
+             optfields = { $( $optfield: $opttype => $optid, default = $optdefl, )* }
+         }
+     }
+}
+
+#[macro_export]
+macro_rules! strukt {
+    (name = $name:ident,
+     derive = [ $( $derive:ident ),* $(,)* ],
+     reqfields = { $($reqfield:ident : $reqtype:ty => $reqid:expr, default = $reqdefl:expr, )* },
+     optfields = { $($optfield:ident : $opttype:ty => $optid:expr, default = $optdefl:expr, )* }) => {
+         strukt_define! {
+             name = $name,
+             derive = [ $( $derive, )* ],
+             reqfields = { $( $reqfield: $reqtype => $reqid, default = $reqdefl, )* },
+             optfields = { $( $optfield: $opttype => $optid, default = $optdefl, )* }
+         }
+         strukt_encode! {
+             name = $name,
+             derive = [ $( $derive, )* ],
+             reqfields = { $( $reqfield: $reqtype => $reqid, default = $reqdefl, )* },
+             optfields = { $( $optfield: $opttype => $optid, default = $optdefl, )* }
+         }
+         strukt_decode! {
+             name = $name,
+             derive = [ $( $derive, )* ],
+             reqfields = { $( $reqfield: $reqtype => $reqid, default = $reqdefl, )* },
+             optfields = { $( $optfield: $opttype => $optid, default = $optdefl, )* }
+         }
+     }
 }
 
 #[macro_export]
